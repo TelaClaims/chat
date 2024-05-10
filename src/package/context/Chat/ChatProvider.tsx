@@ -1,0 +1,498 @@
+import { useCallback, useReducer, useRef } from "react";
+import { ChatContext, ChatDispatchContext } from "./context";
+import { INITIAL_STATE } from "./constants";
+import { InitialState, ChatAction, Views } from "./types";
+import { Client, Message } from "@twilio/conversations";
+import {
+  ChatSettings,
+  Contact,
+  ContactInput,
+  defaultChatSettings,
+} from "@/package/types";
+import { log } from "@/package/utils";
+import { SideBarProvider } from "../SideBarPanel/SideBarProvider";
+
+function chatReducer(state: InitialState, action: ChatAction): InitialState {
+  switch (action.type) {
+    case "setAlert": {
+      return {
+        ...state,
+        alert: action.payload.alert,
+      };
+    }
+    case "setView": {
+      return {
+        ...state,
+        view: action.payload.view as InitialState["view"],
+      };
+    }
+    case "setContact": {
+      return {
+        ...state,
+        contact: action.payload.contact as InitialState["contact"],
+      };
+    }
+    case "setClient": {
+      return {
+        ...state,
+        client: action.payload.client as InitialState["client"],
+      };
+    }
+    case "setConversations": {
+      return {
+        ...state,
+        conversations: action.payload
+          .conversations as InitialState["conversations"],
+      };
+    }
+    case "selectContact": {
+      return {
+        ...state,
+        contactSelected: action.payload
+          .contactSelected as InitialState["contactSelected"],
+      };
+    }
+    case "setActiveConversation": {
+      return {
+        ...state,
+        activeConversation: action.payload
+          .activeConversation as InitialState["activeConversation"],
+      };
+    }
+    default: {
+      throw Error("Unknown action: " + action.type);
+    }
+  }
+}
+
+export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
+  const [chat, dispatch] = useReducer(chatReducer, INITIAL_STATE);
+
+  // To keep the state ref updated inside the callbacks of the chat events
+  const chatRef = useRef<InitialState>(chat);
+  chatRef.current = chat;
+
+  const getEventContext = () => {
+    return {
+      view: chatRef.current.view,
+    };
+  };
+
+  const initializeChat = async (
+    chatSettings: ChatSettings = defaultChatSettings
+  ) => {
+    const { contact, events } = chatSettings;
+
+    setAlert({
+      type: "info",
+      message: "Initializing chat...",
+    });
+
+    const token = await events.onFetchToken(
+      contact.identity,
+      getEventContext()
+    );
+
+    clearAlert();
+    setContact(contact);
+
+    const client = new Client(token);
+
+    addClientListeners(client, events);
+
+    dispatch({ type: "setView", payload: { view: "active" } });
+    dispatch({ type: "setClient", payload: { client } });
+  };
+
+  const addClientListeners = (
+    client: Client,
+    events: ChatSettings["events"]
+  ) => {
+    //#region Initialization
+    client.on("initialized", () => {
+      console.log("Client initialized successfully");
+    });
+
+    client.on("initFailed", ({ error }) => {
+      setAlert({
+        type: "error",
+        message: "Failed to initialize chat",
+        context: error?.message,
+        severity: "critical",
+      });
+    });
+    //#endregion
+
+    //#region Connection State
+    client.on("connectionStateChanged", (state) => {
+      if (state === "connecting") {
+        log("log", "Connecting to chat");
+      }
+
+      if (state === "connected") {
+        log("log", "Connected to chat");
+      }
+
+      if (state === "disconnecting") {
+        log("log", "Disconnecting from chat");
+      }
+
+      if (state === "disconnected") {
+        log("log", "Disconnected from chat");
+      }
+
+      if (state === "denied") {
+        log("log", "Connection denied");
+      }
+
+      if (state === "error") {
+        log("log", "Error connecting to chat");
+      }
+
+      if (state === "unknown") {
+        log("log", "Unknown connection state");
+      }
+    });
+
+    client.on("connectionError", (error) => {
+      log("error", "Connection error", { error });
+    });
+    //#endregion
+
+    //#region Conversation Events
+    client.on("conversationJoined", (conversation) => {
+      log("log", "Conversation joined", { conversation });
+      dispatch({
+        type: "setConversations",
+        payload: { conversations: [...chat.conversations, conversation] },
+      });
+    });
+
+    client.on("conversationLeft", (conversation) => {
+      log("log", "Conversation left", { conversation });
+      dispatch({
+        type: "setConversations",
+        payload: {
+          conversations: [
+            ...chat.conversations.filter((c) => c !== conversation),
+          ],
+        },
+      });
+    });
+
+    client.on("conversationAdded", (conversation) => {
+      log("log", "Conversation added", { conversation });
+    });
+
+    client.on("conversationRemoved", (conversation) => {
+      log("log", "Conversation removed", { conversation });
+    });
+
+    client.on("conversationUpdated", (conversation) => {
+      log("log", "Conversation updated", { conversation });
+    });
+    //#endregion
+
+    //#region Message Events
+    client.on("messageAdded", (message) => {
+      log("log", "Message added", { message });
+
+      if (
+        chatRef.current.activeConversation?.conversation.sid ===
+        message.conversation.sid
+      ) {
+        dispatch({
+          type: "setActiveConversation",
+          payload: {
+            activeConversation: {
+              ...chatRef.current.activeConversation,
+              messages: [
+                ...chatRef.current.activeConversation.messages,
+                message,
+              ],
+            },
+          },
+        });
+      }
+    });
+
+    client.on("messageRemoved", (message) => {
+      log("log", "Message removed", { message });
+    });
+
+    client.on("messageUpdated", (message) => {
+      log("log", "Message updated", { message });
+    });
+    //#endregion
+
+    //#region Participant Events
+    client.on("participantJoined", (participant) => {
+      log("log", "Participant joined", { participant });
+    });
+
+    client.on("participantLeft", (participant) => {
+      log("log", "Participant left", { participant });
+    });
+
+    client.on("participantUpdated", (participant) => {
+      log("log", "Participant updated", { participant });
+    });
+    //#endregion
+
+    //#region Token Events
+    client.on("tokenAboutToExpire", async () => {
+      log("log", "Token about to expire");
+      try {
+        const token = await events.onFetchToken(
+          client.user?.identity || chatRef.current.contact.identity,
+          getEventContext()
+        );
+        client = await client.updateToken(token);
+
+        dispatch({ type: "setClient", payload: { client } });
+        addClientListeners(client, events);
+      } catch (error) {
+        setAlert({
+          type: "error",
+          message: "Token about to expire, unable to get a token",
+          context: JSON.stringify(error),
+          severity: "critical",
+        });
+      }
+    });
+
+    client.on("tokenExpired", async () => {
+      log("log", "Token expired");
+      try {
+        const token = await events.onFetchToken(
+          client.user?.identity || chatRef.current.contact.identity,
+          getEventContext()
+        );
+        client = new Client(token);
+        dispatch({ type: "setClient", payload: { client } });
+        addClientListeners(client, events);
+      } catch (error) {
+        setAlert({
+          type: "error",
+          message: "Token expired, unable to get a token",
+          context: JSON.stringify(error),
+          severity: "critical",
+        });
+      }
+    });
+    //#endregion
+
+    //#region Typing Events
+    client.on("typingStarted", (participant) => {
+      log("log", "Typing started", { participant });
+    });
+
+    client.on("typingEnded", (participant) => {
+      log("log", "Typing ended", { participant });
+    });
+    //#endregion
+
+    //#region User Events
+    client.on("userSubscribed", (user) => {
+      log("log", "User subscribed", { user });
+    });
+
+    client.on("userUnsubscribed", (user) => {
+      log("log", "User unsubscribed", { user });
+    });
+
+    client.on("userUpdated", ({ user, updateReasons }) => {
+      log("log", "User updated", { user });
+      if (updateReasons.includes("reachabilityOnline")) {
+        log("log", "User is online", { user });
+      }
+
+      if (updateReasons.includes("reachabilityNotifiable")) {
+        log("log", "User is notifiable", { user });
+      }
+    });
+    //#endregion
+
+    client.on("pushNotification", (notification) => {
+      log("log", "Push notification", { notification });
+    });
+
+    client.on("stateChanged", (state) => {
+      if (state === "initialized") {
+        log("log", "Client initialized", { state });
+      }
+
+      if (state === "failed") {
+        log("log", "Client failed", { state });
+      }
+    });
+  };
+
+  const setAlert = useCallback((alert: InitialState["alert"]) => {
+    dispatch({ type: "setAlert", payload: { alert } });
+  }, []);
+
+  const clearAlert = useCallback(() => {
+    dispatch({ type: "setAlert", payload: { alert: undefined } });
+  }, []);
+
+  const setView = useCallback((view: InitialState["view"]) => {
+    dispatch({ type: "setView", payload: { view } });
+  }, []);
+
+  const setContact = (contact: ContactInput) => {
+    dispatch({
+      type: "setContact",
+      payload: { contact: Contact.buildContact(contact) },
+    });
+  };
+
+  const shutdownChat = async () => {
+    await chat.client?.shutdown();
+    dispatch({ type: "setClient", payload: { client: undefined } });
+  };
+
+  const selectContact = (contactSelected: ContactInput, view?: Views) => {
+    const { contact, client } = chatRef.current;
+
+    if (!contact?.identity || client?.connectionState !== "connected") {
+      setAlert({
+        message: "The Chat is not ready",
+        severity: "critical",
+        type: "error",
+        context:
+          "lookupContact failed. Identity is missing or client.state is not connected.",
+      });
+      return;
+    }
+
+    if (contactSelected.identity === contact.identity) {
+      setAlert({
+        message: "You are registered as this contact.",
+        type: "error",
+        context: "selectContact failed. Cannot select yourself.",
+      });
+      return;
+    }
+
+    dispatch({
+      type: "selectContact",
+      payload: { contactSelected: Contact.buildContact(contactSelected) },
+    });
+
+    if (view === "on-chat") {
+      selectConversation(contactSelected.identity);
+    }
+    dispatch({ type: "setView", payload: { view: view || "contact" } });
+  };
+
+  const clearSelectedContact = () => {
+    dispatch({
+      type: "selectContact",
+      payload: { contactSelected: undefined },
+    });
+  };
+
+  const startConversation = async (contact: Contact) => {
+    const { client } = chatRef.current;
+
+    if (!client) {
+      setAlert({
+        message: "The Chat is not ready",
+        severity: "critical",
+        type: "error",
+        context: "startConversation failed. Client is missing.",
+      });
+      return;
+    }
+
+    const existingConversation = chat.conversations.find(
+      (conversation) =>
+        conversation._participants.size === 2 &&
+        Array.from(conversation._participants.values()).some(
+          (participant) => participant.identity === contact.identity
+        )
+    );
+
+    if (existingConversation) {
+      selectConversation(contact.identity);
+      dispatch({ type: "setView", payload: { view: "on-chat" } });
+      return;
+    }
+
+    const conversation = await client.createConversation({
+      friendlyName: `${chat.contact.identity} - ${contact.identity}`,
+      uniqueName: `${chat.contact.identity} - ${contact.identity}`,
+    });
+
+    await conversation.add(contact.identity);
+    await conversation.join();
+
+    selectConversation(contact.identity);
+    dispatch({ type: "setView", payload: { view: "on-chat" } });
+  };
+
+  const findConversationByIdentity = (identity: string) => {
+    return chat.conversations.find((conversation) =>
+      Array.from(conversation._participants.values()).some(
+        (participant) => participant.identity === identity
+      )
+    );
+  };
+
+  // const getParticipants = async (conversation: Conversation) => {
+  //   return await conversation.getParticipants();
+  // };
+
+  // const getConversations = async () => {
+  //   if (!chat?.client) {
+  //     throw new Error("Client is not initialized");
+  //   }
+
+  //   const conversationsPaginator: Paginator<Conversation> =
+  //     await chat.client.getSubscribedConversations();
+
+  //   const conversations: Conversation[] = conversationsPaginator.items;
+
+  //   return conversations;
+  // };
+
+  const selectConversation = async (identity: string) => {
+    const conversation = findConversationByIdentity(identity);
+    let messages: Message[] = [];
+
+    if (conversation) {
+      messages = (await conversation.getMessages()).items;
+    }
+
+    if (conversation) {
+      dispatch({
+        type: "setActiveConversation",
+        payload: { activeConversation: { conversation, messages } },
+      });
+    }
+  };
+
+  return (
+    <SideBarProvider>
+      <ChatContext.Provider value={chat}>
+        <ChatDispatchContext.Provider
+          value={{
+            initializeChat,
+            setAlert,
+            clearAlert,
+            setView,
+            shutdownChat,
+            selectContact,
+            clearSelectedContact,
+            startConversation,
+          }}
+        >
+          {children}
+        </ChatDispatchContext.Provider>
+      </ChatContext.Provider>
+    </SideBarProvider>
+  );
+};
+
+export default ChatProvider;
