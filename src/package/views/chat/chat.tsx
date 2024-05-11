@@ -1,4 +1,4 @@
-import { useChat, useChatDispatch } from "@/package/context/Chat/context";
+import { useChat } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
 import {
   Box,
@@ -6,29 +6,37 @@ import {
   InputAdornment,
   List,
   TextField,
+  Typography,
   colors,
 } from "@mui/material";
 import { useRef } from "react";
 import SendIcon from "@mui/icons-material/Send";
-import { MessageUI } from "@/package/components";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import { ChatTopBar, MessageUI } from "@/package/components";
 
 const ChatView = () => {
   const { activeConversation } = useChat();
-  const { conversation, messages } = activeConversation || {};
-  const messageRef = useRef<HTMLInputElement>(null);
-  const { clearSelectedContact, setView } = useChatDispatch();
+  const { conversation, messages, partyParticipants } =
+    activeConversation || {};
 
-  const handleCloseChat = () => {
-    clearSelectedContact();
-    setView("active");
+  const messageInputRef = useRef(null);
+
+  const handleSendMessage = async () => {
+    const cleanMessage = messageInputRef.current?.value?.trim();
+    if (cleanMessage && conversation) {
+      // activeConversation?.conversation.sendMessage(cleanMessage);
+      await activeConversation?.conversation
+        .prepareMessage()
+        .setBody(cleanMessage)
+        .buildAndSend();
+      messageInputRef.current!.value = "";
+    }
   };
 
-  const handleSendMessage = () => {
-    const cleanMessage = messageRef.current?.value?.trim();
-    if (cleanMessage && conversation) {
-      conversation.sendMessage(cleanMessage);
-      messageRef.current!.value = "";
+  const handleTyping = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      handleSendMessage();
+    } else {
+      activeConversation?.conversation.typing();
     }
   };
 
@@ -41,17 +49,10 @@ const ChatView = () => {
         width={"100%"}
         bgcolor={colors.grey["200"]}
       >
-        <Box
-          display={"flex"}
-          justifyContent={"space-between"}
-          alignItems={"center"}
-          width={"100%"}
-          p={1}
-        >
-          <IconButton onClick={handleCloseChat}>
-            <ChevronLeftIcon />
-          </IconButton>
-        </Box>
+        <ChatTopBar
+          conversation={conversation!}
+          participants={partyParticipants!}
+        />
       </Stack.Segment>
 
       {/* Chat Messages  */}
@@ -63,22 +64,31 @@ const ChatView = () => {
       >
         <List sx={{ width: "100%" }}>
           {messages?.map((message) => (
-            <MessageUI key={message.sid} message={message} />
+            <MessageUI
+              key={message.sid}
+              message={message}
+              partyParticipants={partyParticipants}
+            />
           ))}
+          {messages?.length === 0 && (
+            <Box display={"flex"} justifyContent={"center"} p={2}>
+              <Typography variant={"body1"}>No messages yet.</Typography>
+            </Box>
+          )}
         </List>
       </Stack.Segment>
 
       {/* Chat Input Tools */}
-      <Stack.Segment flex={0.2}>
+      <Stack.Segment flex={0.1} pt={1} bgcolor={colors.grey["100"]}>
         <TextField
-          inputRef={messageRef}
+          inputRef={messageInputRef}
           label="Type a message"
           name="message"
           variant="outlined"
           defaultValue={""}
-          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
           fullWidth
           InputProps={{
+            onKeyDown: handleTyping,
             endAdornment: (
               <InputAdornment position="end">
                 <IconButton onClick={handleSendMessage}>

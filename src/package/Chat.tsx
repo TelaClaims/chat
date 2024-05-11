@@ -10,7 +10,7 @@ import { AlertSnackBar, SideBarPanel, Status } from "./components";
 import { ContainerStyles } from "./components/Container/styles";
 import { Main } from "./layouts/Main";
 import { useEffect } from "react";
-import { useChatDispatch } from "./context/Chat/context";
+import { useChat, useChatDispatch } from "./context/Chat/context";
 import { ContactInput, Events, Handlers } from "./types";
 
 const theme = createTheme();
@@ -30,6 +30,7 @@ const Chat = ({
   events,
   styles,
 }: ChatProps) => {
+  const { view } = useChat();
   const { initializeChat, setAlert } = useChatDispatch();
 
   useEffect(() => {
@@ -54,7 +55,7 @@ const Chat = ({
       <Layout styles={styles}>
         <ErrorBoundary>
           <Main handlers={handlers} />
-          {showStatus && <Status />}
+          {showStatus && view !== "on-chat" && <Status />}
         </ErrorBoundary>
         <SideBarPanel />
         <AlertSnackBar />

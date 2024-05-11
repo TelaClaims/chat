@@ -9,18 +9,12 @@ const ContactView = () => {
   const { setView, clearSelectedContact, startConversation } =
     useChatDispatch();
 
-  const handleStartConversation = () => {
+  const handleStartConversation = async () => {
     if (!contactSelected) {
       return;
     }
 
-    // if (onClickMakeCallButton) {
-    //   onClickMakeCallButton(contactSelected);
-    //   return;
-    // }
-
-    startConversation(contactSelected);
-    // makeCall(contactSelected);
+    await startConversation(contactSelected);
   };
 
   if (!contactSelected) return null;

@@ -11,7 +11,7 @@ export const log = (
 ) => {
   if (import.meta.env.DEV) {
     console?.[type](
-      `%c@telaclaims-tech/softphone ${type}: `,
+      `%c@telaclaims-tech/chat ${type}: `,
       STYLES[type],
       message,
       context

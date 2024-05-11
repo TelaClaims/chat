@@ -2,7 +2,7 @@ import { useCallback, useReducer, useRef } from "react";
 import { ChatContext, ChatDispatchContext } from "./context";
 import { INITIAL_STATE } from "./constants";
 import { InitialState, ChatAction, Views } from "./types";
-import { Client, Message } from "@twilio/conversations";
+import { Client, Message, Participant } from "@twilio/conversations";
 import {
   ChatSettings,
   Contact,
@@ -164,7 +164,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "Conversation joined", { conversation });
       dispatch({
         type: "setConversations",
-        payload: { conversations: [...chat.conversations, conversation] },
+        payload: {
+          conversations: [...chatRef.current.conversations, conversation],
+        },
       });
     });
 
@@ -188,8 +190,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "Conversation removed", { conversation });
     });
 
-    client.on("conversationUpdated", (conversation) => {
-      log("log", "Conversation updated", { conversation });
+    client.on("conversationUpdated", ({ conversation, updateReasons }) => {
+      log("log", "Conversation updated", { conversation, updateReasons });
     });
     //#endregion
 
@@ -285,16 +287,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Typing Events
     client.on("typingStarted", (participant) => {
       log("log", "Typing started", { participant });
+      // updateParticipantTyping(participant);
     });
 
     client.on("typingEnded", (participant) => {
       log("log", "Typing ended", { participant });
+      // updateParticipantTyping(participant);
     });
     //#endregion
 
     //#region User Events
-    client.on("userSubscribed", (user) => {
+    client.on("userSubscribed", async (user) => {
       log("log", "User subscribed", { user });
+      // await user.updateAttributes({
+      //   ...chatRef.current.contact.toJSON(),
+      // } as JSONValue);
     });
 
     client.on("userUnsubscribed", (user) => {
@@ -352,7 +359,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     dispatch({ type: "setClient", payload: { client: undefined } });
   };
 
-  const selectContact = (contactSelected: ContactInput, view?: Views) => {
+  const selectContact = async (contactSelected: ContactInput, view?: Views) => {
     const { contact, client } = chatRef.current;
 
     if (!contact?.identity || client?.connectionState !== "connected") {
@@ -381,7 +388,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     if (view === "on-chat") {
-      selectConversation(contactSelected.identity);
+      await selectConversation(contactSelected.identity);
     }
     dispatch({ type: "setView", payload: { view: view || "contact" } });
   };
@@ -406,30 +413,40 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    const existingConversation = chat.conversations.find(
-      (conversation) =>
-        conversation._participants.size === 2 &&
-        Array.from(conversation._participants.values()).some(
-          (participant) => participant.identity === contact.identity
-        )
-    );
+    try {
+      const userToStartConversation = await client.getUser(contact.identity);
 
-    if (existingConversation) {
+      // check if conversation already exists using uniqueName looking for both identity participants as uniqueName
+      const existingConversation = chat.conversations.find((conversation) => {
+        conversation.uniqueName ===
+          `${chat.contact.identity} - ${userToStartConversation.identity}` ||
+          conversation.uniqueName ===
+            `${userToStartConversation.identity} - ${chat.contact.identity}`;
+      });
+
+      if (existingConversation) {
+        selectConversation(contact.identity);
+        dispatch({ type: "setView", payload: { view: "on-chat" } });
+        return;
+      }
+
+      const conversation = await client.createConversation({
+        friendlyName: `${chat.contact.identity} - ${contact.identity}`,
+        uniqueName: `${chat.contact.identity} - ${contact.identity}`,
+      });
+
+      await conversation.add(contact.identity);
+      await conversation.join();
+
       selectConversation(contact.identity);
       dispatch({ type: "setView", payload: { view: "on-chat" } });
-      return;
+    } catch (error) {
+      setAlert({
+        message: "Failed to start conversation",
+        type: "error",
+        context: JSON.stringify(error),
+      });
     }
-
-    const conversation = await client.createConversation({
-      friendlyName: `${chat.contact.identity} - ${contact.identity}`,
-      uniqueName: `${chat.contact.identity} - ${contact.identity}`,
-    });
-
-    await conversation.add(contact.identity);
-    await conversation.join();
-
-    selectConversation(contact.identity);
-    dispatch({ type: "setView", payload: { view: "on-chat" } });
   };
 
   const findConversationByIdentity = (identity: string) => {
@@ -460,15 +477,30 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const selectConversation = async (identity: string) => {
     const conversation = findConversationByIdentity(identity);
     let messages: Message[] = [];
+    let participants: Participant[] = [];
+    let partyParticipants: Participant[] = [];
+    let messagesUnreadCount: number | null = null;
 
     if (conversation) {
-      messages = (await conversation.getMessages()).items;
+      messages = (await conversation.getMessages(30)).items;
+      participants = await conversation.getParticipants();
+      partyParticipants = participants.filter(
+        (participant) => participant.identity !== chat.contact.identity
+      );
+      messagesUnreadCount = await conversation.getUnreadMessagesCount();
     }
 
     if (conversation) {
       dispatch({
         type: "setActiveConversation",
-        payload: { activeConversation: { conversation, messages } },
+        payload: {
+          activeConversation: {
+            conversation,
+            messages,
+            partyParticipants,
+            messagesUnreadCount,
+          },
+        },
       });
     }
   };

@@ -1,5 +1,10 @@
 import { ChatSettings, Contact, ContactInput } from "@/package/types";
-import { Client, Conversation, Message } from "@twilio/conversations";
+import {
+  Client,
+  Conversation,
+  Message,
+  Participant,
+} from "@twilio/conversations";
 
 export type Views = "inactive" | "active" | "lookup" | "contact" | "on-chat";
 
@@ -8,17 +13,25 @@ export type InitialState = {
   contact: Contact;
   contactSelected?: Contact;
   client?: Client;
-  conversations: Conversation[];
-  activeConversation?: {
-    conversation: Conversation;
-    messages: Message[];
-  };
   alert?: {
     message: string;
     context?: string;
     severity?: "critical" | "regular";
     type: "error" | "warning" | "info" | "success";
   };
+  conversations: Conversation[];
+  activeConversation?: {
+    conversation: Conversation;
+    messages: Message[];
+    partyParticipants: Participant[];
+    messagesUnreadCount: number | null;
+  };
+};
+
+export type _Conversation = {
+  readonly conversation: Conversation;
+  readonly messages: Message[];
+  readonly participants: Participant[];
 };
 
 export type ChatAction = {
@@ -29,7 +42,8 @@ export type ChatAction = {
     | "setClient"
     | "setConversations"
     | "selectContact"
-    | "setActiveConversation";
+    | "setActiveConversation"
+    | "updateParticipantTyping";
   payload: Partial<InitialState>;
 };
 

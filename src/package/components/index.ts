@@ -7,3 +7,4 @@ export { ContactListItem } from "./ContactListItem/ContactListItem";
 export { ContactUI } from "./Contact/Contact";
 export { SideBarPanel } from "./SideBarPanel/SideBarPanel";
 export { MessageUI } from "./Message/Message";
+export { ChatTopBar } from "./ChatTopBar/ChatTopBar";

@@ -6,8 +6,10 @@ import { Fragment, useEffect } from "react";
 import { useSideBar } from "@/package/context/SideBarPanel/context";
 import GroupsIcon from "@mui/icons-material/Groups";
 import { ConversationsPanel } from "./ConversationsPanel/ConversationsPanel";
+import { useChat } from "@/package/context/Chat/context";
 
 export const SideBarPanel = ({ styles, options }: SideBarProps) => {
+  const { client } = useChat();
   const { open, activePanel, closeSideBar, updateOptions, openSideBar } =
     useSideBar();
 
@@ -15,7 +17,10 @@ export const SideBarPanel = ({ styles, options }: SideBarProps) => {
     id: "conversations",
     title: "Conversations",
     component: (
-      <IconButton onClick={() => openSideBar("conversations")}>
+      <IconButton
+        disabled={client?.connectionState !== "connected"}
+        onClick={() => openSideBar("conversations")}
+      >
         <GroupsIcon />
       </IconButton>
     ),
