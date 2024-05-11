@@ -18,7 +18,7 @@ const ChatView = () => {
   const { conversation, messages, partyParticipants } =
     activeConversation || {};
 
-  const messageInputRef = useRef(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
 
   const handleSendMessage = async () => {
     const cleanMessage = messageInputRef.current?.value?.trim();

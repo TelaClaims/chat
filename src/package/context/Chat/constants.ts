@@ -5,7 +5,6 @@ export const INITIAL_STATE: InitialState = {
   contact: new Contact({ identity: "" }),
   view: "active",
   conversations: [],
-  _conversations: [],
 };
 
 export const CHAT_DISPATCH: ChatDispatch = {
