@@ -1,4 +1,4 @@
-import { useIsTyping } from "@/package/hooks";
+import { useIsTyping, useOnUpdateNewMessagesCount } from "@/package/hooks";
 import { Badge, Box, ListItemButton, Typography } from "@mui/material";
 import { Conversation } from "@twilio/conversations";
 
@@ -12,6 +12,7 @@ export const ConversationItem = ({
   onSelectConversation,
 }: Props) => {
   const { participant, isTyping } = useIsTyping(conversation);
+  const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation);
 
   const handleClickConversation = (
     event: React.MouseEvent<HTMLDivElement, MouseEvent>
@@ -19,18 +20,6 @@ export const ConversationItem = ({
     event.preventDefault();
     onSelectConversation(conversation);
   };
-
-  // TODO: Implement new messages count automatically. Should update when new messages are received and every time a message was read.
-  const {
-    lastMessage: lastConversationMessage,
-    lastReadMessageIndex: lastMessageReadByUserIndex,
-  } = conversation || {};
-
-  const newMessagesCount =
-    lastConversationMessage?.index !== undefined &&
-    lastMessageReadByUserIndex !== null
-      ? lastConversationMessage.index - lastMessageReadByUserIndex
-      : 0;
 
   return (
     <ListItemButton

@@ -6,7 +6,9 @@ import {
 import { useEffect, useState } from "react";
 import { useChat } from "../context/Chat/context";
 
-export const useOnLastReadMessage = (conversation: Conversation) => {
+export const useOnLastReadMessageByParticipants = (
+  conversation: Conversation
+) => {
   const { client } = useChat();
   const [
     lastMessageIndexReadByParticipants,
@@ -14,7 +16,7 @@ export const useOnLastReadMessage = (conversation: Conversation) => {
   ] = useState(0);
 
   useEffect(() => {
-    const checkLastReadMessageIndex = () => {
+    const checkLastReadMessageIndexByParticipants = () => {
       const partyParticipants = Array.from(
         conversation._participants.values()
       ).filter((participant) => participant.identity !== client?.user.identity);
@@ -47,12 +49,12 @@ export const useOnLastReadMessage = (conversation: Conversation) => {
         client?.user.identity !== participant.identity &&
         updateReasons.includes("lastReadMessageIndex")
       ) {
-        checkLastReadMessageIndex();
+        checkLastReadMessageIndexByParticipants();
       }
     };
 
     conversation.on("participantUpdated", onParticipantUpdated);
-    checkLastReadMessageIndex();
+    checkLastReadMessageIndexByParticipants();
 
     return () => {
       conversation.off("participantUpdated", onParticipantUpdated);

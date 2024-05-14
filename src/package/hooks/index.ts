@@ -1,3 +1,4 @@
 export { useIsTyping } from "./useIsTyping";
 export { useGetConversationUser } from "./useGetConversationUser";
-export { useOnLastReadMessage } from "./useOnLastReadMessage";
+export { useOnLastReadMessageByParticipants } from "./useOnLastReadMessageByParticipants";
+export { useOnUpdateNewMessagesCount } from "./useOnUpdateNewMessagesCount";

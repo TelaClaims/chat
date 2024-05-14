@@ -13,16 +13,15 @@ import {
 import { useEffect, useRef } from "react";
 import SendIcon from "@mui/icons-material/Send";
 import { ChatTopBar, MessageUI } from "@/package/components";
-import { useOnLastReadMessage } from "@/package/hooks";
+import { useOnLastReadMessageByParticipants } from "@/package/hooks";
 
 const ChatView = () => {
   const { activeConversation } = useChat();
   const { loading, conversation, messages, partyParticipants } =
     activeConversation || {};
 
-  const { lastMessageIndexReadByParticipants } = useOnLastReadMessage(
-    conversation!
-  );
+  const { lastMessageIndexReadByParticipants } =
+    useOnLastReadMessageByParticipants(conversation!);
 
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +37,9 @@ const ChatView = () => {
       messageInputRef.current!.value = "";
 
       await conversation.setAllMessagesRead();
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      }
     }
   };
 
@@ -55,7 +57,7 @@ const ChatView = () => {
     }
   }, [messages]);
 
-  if (loading)
+  if (loading) {
     return (
       <Box
         display={"flex"}
@@ -66,6 +68,7 @@ const ChatView = () => {
         <CircularProgress color="primary" size={60} />
       </Box>
     );
+  }
 
   return (
     <Stack>
