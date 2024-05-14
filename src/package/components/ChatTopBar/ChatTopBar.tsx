@@ -54,6 +54,7 @@ export const ChatTopBar = ({ conversation, participants }: Props) => {
           })}
         </Box>
       </Box>
+      <span></span>
     </Box>
   );
 };
