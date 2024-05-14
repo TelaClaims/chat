@@ -6,7 +6,7 @@ interface Props {
   ref: React.RefObject<HTMLLIElement>;
 }
 
-export const useMessageRead = ({ message, ref }: Props) => {
+export const useMessageReadIntersection = ({ message, ref }: Props) => {
   useEffect(() => {
     if (!ref.current) {
       return;

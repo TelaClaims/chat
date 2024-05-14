@@ -8,3 +8,7 @@ export { ContactUI } from "./Contact/Contact";
 export { SideBarPanel } from "./SideBarPanel/SideBarPanel";
 export { MessageUI } from "./Message/Message";
 export { ChatTopBar } from "./ChatTopBar/ChatTopBar";
+export { MessageMenu } from "./MessageMenu/MessageMenu";
+export { MessageDateLine } from "./MessageDateLine/MessageDateLine";
+export { MessageBackdrop } from "./MessageBackdrop/MessageBackdrop";
+export { MessageSelectedPlaceHolder } from "./MessageSelectedPlaceHolder/MessageSelectedPlaceHolder";

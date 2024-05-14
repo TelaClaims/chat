@@ -10,25 +10,62 @@ import {
   Typography,
   colors,
 } from "@mui/material";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import SendIcon from "@mui/icons-material/Send";
-import { ChatTopBar, MessageUI } from "@/package/components";
+import {
+  ChatTopBar,
+  MessageBackdrop,
+  MessageDateLine,
+  MessageSelectedPlaceHolder,
+  MessageUI,
+} from "@/package/components";
 import { useOnLastReadMessageByParticipants } from "@/package/hooks";
+import { Message } from "@twilio/conversations";
 
 const ChatView = () => {
   const { activeConversation } = useChat();
   const { loading, conversation, messages, partyParticipants } =
     activeConversation || {};
-
-  const { lastMessageIndexReadByParticipants } =
-    useOnLastReadMessageByParticipants(conversation!);
+  const [editableMessage, setEditableMessage] = useState<{
+    message: Message | null;
+  }>({
+    message: null,
+  });
 
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const { lastMessageIndexReadByParticipants } =
+    useOnLastReadMessageByParticipants(conversation!);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+    }
+  }, [messages]);
+
+  if (loading) {
+    return (
+      <Box
+        display={"flex"}
+        height={"100%"}
+        justifyContent={"center"}
+        alignItems={"center"}
+      >
+        <CircularProgress color="primary" size={60} />
+      </Box>
+    );
+  }
+
   const handleSendMessage = async () => {
     const cleanMessage = messageInputRef.current?.value?.trim();
     if (cleanMessage && conversation) {
+      if (editableMessage.message) {
+        await editableMessage.message.updateBody(cleanMessage);
+        handleCloseBackdrop();
+        return;
+      }
+
       // activeConversation?.conversation.sendMessage(cleanMessage);
       await activeConversation?.conversation
         .prepareMessage()
@@ -51,24 +88,24 @@ const ChatView = () => {
     }
   };
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
-    }
-  }, [messages]);
+  const handleSelectMessage = (message: Message, reason: "edit") => {
+    if (reason === "edit") {
+      if (message.body?.trim() === "" || !messageInputRef.current) {
+        return;
+      }
 
-  if (loading) {
-    return (
-      <Box
-        display={"flex"}
-        height={"100%"}
-        justifyContent={"center"}
-        alignItems={"center"}
-      >
-        <CircularProgress color="primary" size={60} />
-      </Box>
-    );
-  }
+      messageInputRef.current.value = message.body || "";
+      messageInputRef.current?.focus();
+      setEditableMessage({ message });
+    }
+  };
+
+  const handleCloseBackdrop = () => {
+    if (messageInputRef.current) {
+      messageInputRef.current.value = "";
+      setEditableMessage({ message: null });
+    }
+  };
 
   return (
     <Stack>
@@ -78,6 +115,7 @@ const ChatView = () => {
         display={"flex"}
         width={"100%"}
         bgcolor={colors.grey["200"]}
+        zIndex={10}
       >
         <ChatTopBar
           conversation={conversation!}
@@ -88,18 +126,30 @@ const ChatView = () => {
       {/* Chat Messages  */}
       <Stack.Segment
         flex={0.8}
-        display={"flex"}
         width={"100%"}
         overflow={"auto"}
+        display={"flex"}
       >
+        {editableMessage.message && (
+          <MessageBackdrop onClick={handleCloseBackdrop} />
+        )}
         <List sx={{ width: "100%" }}>
-          {messages?.map((message) => (
-            <MessageUI
-              key={message.sid}
-              message={message}
-              isRead={message.index <= lastMessageIndexReadByParticipants}
-            />
-          ))}
+          {messages?.map((message, index) => {
+            return (
+              <Box key={message.sid}>
+                <MessageDateLine
+                  message={message}
+                  beforeMessage={messages?.[index - 1]}
+                  isFirstMessage={message.sid === messages[0].sid}
+                />
+                <MessageUI
+                  message={message}
+                  isRead={message.index <= lastMessageIndexReadByParticipants}
+                  onSelectMessage={handleSelectMessage}
+                />
+              </Box>
+            );
+          })}
           {messages?.length === 0 && (
             <Box display={"flex"} justifyContent={"center"} p={2}>
               <Typography variant={"body1"}>No messages yet.</Typography>
@@ -110,7 +160,13 @@ const ChatView = () => {
       </Stack.Segment>
 
       {/* Chat Input Tools */}
-      <Stack.Segment flex={0.1} pt={1} bgcolor={colors.grey["100"]}>
+      <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={10}>
+        {editableMessage.message && (
+          <MessageSelectedPlaceHolder
+            message={editableMessage.message}
+            onClose={handleCloseBackdrop}
+          />
+        )}
         <TextField
           inputRef={messageInputRef}
           label="Type a message"
