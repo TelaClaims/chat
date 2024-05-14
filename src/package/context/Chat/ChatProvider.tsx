@@ -226,6 +226,25 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     client.on("messageRemoved", (message) => {
       log("log", "Message removed", { message });
+
+      if (
+        chatRef.current.activeConversation?.conversation.sid ===
+        message.conversation.sid
+      ) {
+        dispatch({
+          type: "setActiveConversation",
+          payload: {
+            activeConversation: {
+              ...chatRef.current.activeConversation,
+              messages: [
+                ...chatRef.current.activeConversation.messages.filter(
+                  (m) => m.sid !== message.sid
+                ),
+              ],
+            },
+          },
+        });
+      }
     });
 
     client.on("messageUpdated", (message) => {

@@ -1,4 +1,4 @@
-import { useChat } from "@/package/context/Chat/context";
+import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
 import {
   Box,
@@ -24,6 +24,7 @@ import { Message } from "@twilio/conversations";
 
 const ChatView = () => {
   const { activeConversation } = useChat();
+  const { setAlert } = useChatDispatch();
   const { loading, conversation, messages, partyParticipants } =
     activeConversation || {};
   const [editableMessage, setEditableMessage] = useState<{
@@ -88,7 +89,10 @@ const ChatView = () => {
     }
   };
 
-  const handleSelectMessage = (message: Message, reason: "edit") => {
+  const handleSelectMessage = (
+    message: Message,
+    reason: "copy" | "edit" | "delete"
+  ) => {
     if (reason === "edit") {
       if (message.body?.trim() === "" || !messageInputRef.current) {
         return;
@@ -97,6 +101,20 @@ const ChatView = () => {
       messageInputRef.current.value = message.body || "";
       messageInputRef.current?.focus();
       setEditableMessage({ message });
+    }
+    if (reason === "delete") {
+      message.remove();
+      setAlert({
+        message: "Message deleted",
+        type: "info",
+      });
+    }
+    if (reason === "copy") {
+      navigator.clipboard.writeText(message.body || "");
+      setAlert({
+        message: "Message copied to clipboard",
+        type: "info",
+      });
     }
   };
 
@@ -174,6 +192,7 @@ const ChatView = () => {
           variant="outlined"
           defaultValue={""}
           fullWidth
+          InputLabelProps={{ shrink: true }}
           InputProps={{
             onKeyDown: handleTyping,
             endAdornment: (

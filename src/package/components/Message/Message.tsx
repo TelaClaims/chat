@@ -10,7 +10,10 @@ import { useOnMessageUpdated } from "@/package/hooks";
 interface Props {
   message: Message;
   isRead: boolean;
-  onSelectMessage: (message: Message, reason: "edit") => void;
+  onSelectMessage: (
+    message: Message,
+    reason: "copy" | "edit" | "delete"
+  ) => void;
 }
 
 export const MessageUI = ({ message, isRead, onSelectMessage }: Props) => {

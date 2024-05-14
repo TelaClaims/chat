@@ -27,6 +27,7 @@ export const ChatTopBar = ({ conversation, participants }: Props) => {
       alignItems={"center"}
       width={"100%"}
       p={1}
+      borderBottom={"1px solid #ccc"}
     >
       <IconButton onClick={handleCloseChat}>
         <ChevronLeftIcon />
