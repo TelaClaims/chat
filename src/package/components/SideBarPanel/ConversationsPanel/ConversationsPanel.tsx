@@ -1,8 +1,13 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { useSideBar } from "@/package/context/SideBarPanel/context";
 import { List } from "@mui/material";
-import { Conversation } from "@twilio/conversations";
+import {
+  Conversation,
+  ConversationBindings,
+  ParticipantType,
+} from "@twilio/conversations";
 import { ConversationItem } from "./ConversationItem";
+import { ContactInput } from "@/package/types";
 
 export const ConversationsPanel = () => {
   const { conversations, client } = useChat();
@@ -15,13 +20,25 @@ export const ConversationsPanel = () => {
     ).filter((participant) => participant.identity !== client?.user?.identity);
 
     if (partyParticipants.length === 1) {
-      selectContact(
-        {
+      let partyContact: ContactInput;
+      const participantType = partyParticipants[0].type as ParticipantType;
+      const participantBindings = partyParticipants[0]
+        .bindings as ConversationBindings;
+
+      if (participantType === "sms") {
+        partyContact = {
+          identity: participantBindings.sms?.address || "",
+          label: participantBindings.sms?.address || "",
+          type: "phone",
+        };
+      } else {
+        partyContact = {
           identity: partyParticipants[0].identity!,
           label: partyParticipants[0].identity!,
-        },
-        "on-chat"
-      );
+          type: "identifier",
+        };
+      }
+      selectContact(partyContact, "on-chat");
       closeSideBar();
     }
   };

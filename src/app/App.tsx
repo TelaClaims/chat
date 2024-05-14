@@ -3,6 +3,7 @@ import ControlPanel from "./components/ControlPanel";
 import { Chat, ContactInput } from "@/package";
 import { useState } from "react";
 import { contactList } from "./contacts.mock";
+import { isValidPhoneNumber } from "libphonenumber-js";
 
 const Layout = styled("div")`
   display: flex;
@@ -35,6 +36,15 @@ function App() {
     const results = contactList.filter((contact) =>
       contact.label?.toLowerCase()?.includes(contactToLookup.toLowerCase())
     );
+
+    if (!results.length && isValidPhoneNumber(contactToLookup, "US")) {
+      return [
+        {
+          identity: contactToLookup,
+          isNew: true,
+        },
+      ];
+    }
 
     return results;
   };

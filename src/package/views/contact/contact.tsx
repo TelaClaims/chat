@@ -3,11 +3,15 @@ import { ActionButton, ContactUI } from "@/package/components";
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
 import AddCommentIcon from "@mui/icons-material/AddComment";
+import { useGetConversationUser } from "@/package/hooks";
 
 const ContactView = () => {
   const { contactSelected } = useChat();
   const { setView, clearSelectedContact, startConversation } =
     useChatDispatch();
+  const { conversationUser } = useGetConversationUser({
+    identity: contactSelected?.identity || "",
+  });
 
   const handleStartConversation = async () => {
     if (!contactSelected) {
@@ -46,12 +50,19 @@ const ContactView = () => {
             clearSelectedContact();
           }}
           icon={<CloseIcon fontSize="large" />}
+          tooltip={"Close"}
         />
         <ActionButton
+          disabled={!conversationUser}
           active
           color="success"
           onClick={handleStartConversation}
           icon={<AddCommentIcon fontSize="large" />}
+          tooltip={
+            !conversationUser
+              ? "User is not registered on Conversation Service"
+              : "Start conversation"
+          }
         />
       </Stack.Segment>
     </Stack>

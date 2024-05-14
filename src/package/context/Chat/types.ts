@@ -21,17 +21,12 @@ export type InitialState = {
   };
   conversations: Conversation[];
   activeConversation?: {
+    loading: boolean;
     conversation: Conversation;
     messages: Message[];
     partyParticipants: Participant[];
     messagesUnreadCount: number | null;
   };
-};
-
-export type _Conversation = {
-  readonly conversation: Conversation;
-  readonly messages: Message[];
-  readonly participants: Participant[];
 };
 
 export type ChatAction = {

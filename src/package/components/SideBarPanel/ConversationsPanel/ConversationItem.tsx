@@ -1,5 +1,5 @@
 import { useIsTyping } from "@/package/hooks";
-import { ListItemButton, Typography } from "@mui/material";
+import { Badge, Box, ListItemButton, Typography } from "@mui/material";
 import { Conversation } from "@twilio/conversations";
 
 interface Props {
@@ -20,6 +20,18 @@ export const ConversationItem = ({
     onSelectConversation(conversation);
   };
 
+  // TODO: Implement new messages count automatically. Should update when new messages are received and every time a message was read.
+  const {
+    lastMessage: lastConversationMessage,
+    lastReadMessageIndex: lastMessageReadByUserIndex,
+  } = conversation || {};
+
+  const newMessagesCount =
+    lastConversationMessage?.index !== undefined &&
+    lastMessageReadByUserIndex !== null
+      ? lastConversationMessage.index - lastMessageReadByUserIndex
+      : 0;
+
   return (
     <ListItemButton
       onClick={handleClickConversation}
@@ -32,6 +44,12 @@ export const ConversationItem = ({
       <Typography variant={"body2"}>
         {isTyping ? `${participant?.identity} is typing...` : ""}
       </Typography>
+      {newMessagesCount > 0 && (
+        <Box display={"flex"} alignItems={"center"} gap={2}>
+          <Typography variant={"caption"}>New messages</Typography>
+          <Badge badgeContent={newMessagesCount} color="primary" />
+        </Box>
+      )}
     </ListItemButton>
   );
 };

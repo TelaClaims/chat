@@ -2,7 +2,13 @@ import { useCallback, useReducer, useRef } from "react";
 import { ChatContext, ChatDispatchContext } from "./context";
 import { INITIAL_STATE } from "./constants";
 import { InitialState, ChatAction, Views } from "./types";
-import { Client, Message, Participant } from "@twilio/conversations";
+import {
+  Client,
+  ConversationBindings,
+  Message,
+  Participant,
+  ParticipantType,
+} from "@twilio/conversations";
 import {
   ChatSettings,
   Contact,
@@ -93,7 +99,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       getEventContext()
     );
 
-    clearAlert();
     setContact(contact);
 
     const client = new Client(token);
@@ -111,6 +116,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Initialization
     client.on("initialized", () => {
       console.log("Client initialized successfully");
+      clearAlert();
     });
 
     client.on("initFailed", ({ error }) => {
@@ -414,18 +420,27 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      const userToStartConversation = await client.getUser(contact.identity);
+      if (contact.type === "identifier") {
+        await client.getUser(contact.identity);
+      } else {
+        setAlert({
+          message: "Start conversation with SMS not implemented yet",
+          type: "warning",
+        });
+        return;
+      }
 
       // check if conversation already exists using uniqueName looking for both identity participants as uniqueName
-      const existingConversation = chat.conversations.find((conversation) => {
-        conversation.uniqueName ===
-          `${chat.contact.identity} - ${userToStartConversation.identity}` ||
+      const existingConversation = chat.conversations.find(
+        (conversation) =>
           conversation.uniqueName ===
-            `${userToStartConversation.identity} - ${chat.contact.identity}`;
-      });
+            `${chat.contact.identity} - ${contact.identity}` ||
+          conversation.uniqueName ===
+            `${contact.identity} - ${chat.contact.identity}`
+      );
 
       if (existingConversation) {
-        selectConversation(contact.identity);
+        await selectConversation(contact.identity);
         dispatch({ type: "setView", payload: { view: "on-chat" } });
         return;
       }
@@ -435,10 +450,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         uniqueName: `${chat.contact.identity} - ${contact.identity}`,
       });
 
-      await conversation.add(contact.identity);
+      if (contact.type === "identifier") {
+        await conversation.add(contact.identity);
+      } else {
+        // TODO: Implement SMS conversation
+        // const TWILIO_PHONE_NUMBER = "+19793303975";
+        // const BINDING_ADDRESS = "+17726465796";
+        // await conversation.addNonChatParticipant(
+        //   TWILIO_PHONE_NUMBER,
+        //   BINDING_ADDRESS,
+        //   { identity: contact.identity }
+        // );
+      }
       await conversation.join();
 
-      selectConversation(contact.identity);
+      await selectConversation(contact.identity);
       dispatch({ type: "setView", payload: { view: "on-chat" } });
     } catch (error) {
       setAlert({
@@ -451,9 +477,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const findConversationByIdentity = (identity: string) => {
     return chat.conversations.find((conversation) =>
-      Array.from(conversation._participants.values()).some(
-        (participant) => participant.identity === identity
-      )
+      Array.from(conversation._participants.values()).some((participant) => {
+        const participantType = participant.type as ParticipantType;
+        const participantBindings =
+          participant.bindings as ConversationBindings;
+
+        if (participantType === "sms") {
+          return participantBindings.sms?.address === identity;
+        }
+        if (participantType === "chat") {
+          return participant.identity === identity;
+        }
+      })
     );
   };
 
@@ -482,19 +517,27 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     let messagesUnreadCount: number | null = null;
 
     if (conversation) {
+      dispatch({
+        type: "setActiveConversation",
+        payload: {
+          activeConversation: {
+            ...chatRef.current.activeConversation!,
+            loading: true,
+          },
+        },
+      });
       messages = (await conversation.getMessages(30)).items;
       participants = await conversation.getParticipants();
       partyParticipants = participants.filter(
         (participant) => participant.identity !== chat.contact.identity
       );
       messagesUnreadCount = await conversation.getUnreadMessagesCount();
-    }
 
-    if (conversation) {
       dispatch({
         type: "setActiveConversation",
         payload: {
           activeConversation: {
+            loading: false,
             conversation,
             messages,
             partyParticipants,

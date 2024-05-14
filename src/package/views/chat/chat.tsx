@@ -2,6 +2,7 @@ import { useChat } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
 import {
   Box,
+  CircularProgress,
   IconButton,
   InputAdornment,
   List,
@@ -9,16 +10,22 @@ import {
   Typography,
   colors,
 } from "@mui/material";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import SendIcon from "@mui/icons-material/Send";
 import { ChatTopBar, MessageUI } from "@/package/components";
+import { useOnLastReadMessage } from "@/package/hooks";
 
 const ChatView = () => {
   const { activeConversation } = useChat();
-  const { conversation, messages, partyParticipants } =
+  const { loading, conversation, messages, partyParticipants } =
     activeConversation || {};
 
+  const { lastMessageIndexReadByParticipants } = useOnLastReadMessage(
+    conversation!
+  );
+
   const messageInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleSendMessage = async () => {
     const cleanMessage = messageInputRef.current?.value?.trim();
@@ -29,6 +36,8 @@ const ChatView = () => {
         .setBody(cleanMessage)
         .buildAndSend();
       messageInputRef.current!.value = "";
+
+      await conversation.setAllMessagesRead();
     }
   };
 
@@ -39,6 +48,24 @@ const ChatView = () => {
       activeConversation?.conversation.typing();
     }
   };
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+    }
+  }, [messages]);
+
+  if (loading)
+    return (
+      <Box
+        display={"flex"}
+        height={"100%"}
+        justifyContent={"center"}
+        alignItems={"center"}
+      >
+        <CircularProgress color="primary" size={60} />
+      </Box>
+    );
 
   return (
     <Stack>
@@ -67,7 +94,7 @@ const ChatView = () => {
             <MessageUI
               key={message.sid}
               message={message}
-              partyParticipants={partyParticipants}
+              isRead={message.index <= lastMessageIndexReadByParticipants}
             />
           ))}
           {messages?.length === 0 && (
@@ -75,6 +102,7 @@ const ChatView = () => {
               <Typography variant={"body1"}>No messages yet.</Typography>
             </Box>
           )}
+          <div ref={messagesEndRef} />
         </List>
       </Stack.Segment>
 
