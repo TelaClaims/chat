@@ -1,3 +1,4 @@
+import { ConversationAttributes, UserAttributes } from "./Attributes";
 import Contact, { ContactInput, ContactStatus } from "./Contact";
 import {
   ChatSettings,
@@ -16,4 +17,6 @@ export {
   type Events,
   type Handlers,
 };
+
 export { type SideBarOption, type SideBarProps };
+export { type ConversationAttributes, type UserAttributes };

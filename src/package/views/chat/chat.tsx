@@ -1,49 +1,106 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
-import {
-  Box,
-  CircularProgress,
-  IconButton,
-  InputAdornment,
-  List,
-  TextField,
-  Typography,
-  colors,
-} from "@mui/material";
+import { Box, CircularProgress, List, Typography, colors } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import SendIcon from "@mui/icons-material/Send";
 import {
+  ChatForm,
   ChatTopBar,
+  MessageAlert,
   MessageBackdrop,
   MessageDateLine,
-  MessageSelectedPlaceHolder,
   MessageUI,
 } from "@/package/components";
-import { useOnLastReadMessageByParticipants } from "@/package/hooks";
+import {
+  useOnLastReadMessageByParticipants,
+  useOnUpdateNewMessagesCount,
+} from "@/package/hooks";
 import { Message } from "@twilio/conversations";
 
 const ChatView = () => {
-  const { activeConversation } = useChat();
-  const { setAlert } = useChatDispatch();
-  const { loading, conversation, messages, partyParticipants } =
-    activeConversation || {};
-  const [editableMessage, setEditableMessage] = useState<{
-    message: Message | null;
-  }>({
-    message: null,
-  });
+  const { activeConversation, selectedMessage } = useChat();
+  const { selectMessage } = useChatDispatch();
+  const { loading, conversation, messages } = activeConversation || {};
 
-  const messageInputRef = useRef<HTMLInputElement>(null);
+  const [lastMessageInViewPort, setLastMessageInViewPort] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Refs for each message
 
   const { lastMessageIndexReadByParticipants } =
     useOnLastReadMessageByParticipants(conversation!);
 
+  const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation!);
+
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+    if (conversation && messageRefs.current) {
+      const lastReadMessageIndex = conversation.lastReadMessageIndex;
+      const messagesElements = Object.values(messageRefs.current);
+
+      // Scroll to last read message
+      if (lastReadMessageIndex && messagesElements.length) {
+        const lastElementToScrollTo = messagesElements.find((element) => {
+          const index = element?.getAttribute("data-index");
+          return index && parseInt(index) === lastReadMessageIndex;
+        });
+        if (lastElementToScrollTo) {
+          lastElementToScrollTo.scrollIntoView({ behavior: "auto" });
+        }
+      }
     }
-  }, [messages]);
+  }, [conversation, messageRefs]);
+
+  useEffect(() => {
+    if (!messagesEndRef.current) {
+      return;
+    }
+
+    const messageEndElement = messagesEndRef.current;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (!lastMessageInViewPort) {
+            setLastMessageInViewPort(true);
+          }
+        } else {
+          if (lastMessageInViewPort) {
+            setLastMessageInViewPort(false);
+          }
+        }
+      },
+      {
+        root: null,
+        threshold: 0,
+      }
+    );
+
+    observer.observe(messageEndElement);
+
+    return () => {
+      observer.unobserve(messageEndElement);
+    };
+  }, [messagesEndRef, messages, lastMessageInViewPort]);
+
+  useEffect(() => {
+    if (newMessagesCount > 0 && lastMessageInViewPort) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [lastMessageInViewPort, newMessagesCount]);
+
+  const goToMessage = (message: Message) => {
+    const messageElement = messageRefs.current[message.sid];
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const goToLastMessage = () => {
+    const messageElement =
+      messageRefs.current[messages![messages!.length - 1].sid];
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "auto", block: "center" });
+    }
+  };
 
   if (loading) {
     return (
@@ -58,72 +115,7 @@ const ChatView = () => {
     );
   }
 
-  const handleSendMessage = async () => {
-    const cleanMessage = messageInputRef.current?.value?.trim();
-    if (cleanMessage && conversation) {
-      if (editableMessage.message) {
-        await editableMessage.message.updateBody(cleanMessage);
-        handleCloseBackdrop();
-        return;
-      }
-
-      // activeConversation?.conversation.sendMessage(cleanMessage);
-      await activeConversation?.conversation
-        .prepareMessage()
-        .setBody(cleanMessage)
-        .buildAndSend();
-      messageInputRef.current!.value = "";
-
-      await conversation.setAllMessagesRead();
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "auto" });
-      }
-    }
-  };
-
-  const handleTyping = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      handleSendMessage();
-    } else {
-      activeConversation?.conversation.typing();
-    }
-  };
-
-  const handleSelectMessage = (
-    message: Message,
-    reason: "copy" | "edit" | "delete"
-  ) => {
-    if (reason === "edit") {
-      if (message.body?.trim() === "" || !messageInputRef.current) {
-        return;
-      }
-
-      messageInputRef.current.value = message.body || "";
-      messageInputRef.current?.focus();
-      setEditableMessage({ message });
-    }
-    if (reason === "delete") {
-      message.remove();
-      setAlert({
-        message: "Message deleted",
-        type: "info",
-      });
-    }
-    if (reason === "copy") {
-      navigator.clipboard.writeText(message.body || "");
-      setAlert({
-        message: "Message copied to clipboard",
-        type: "info",
-      });
-    }
-  };
-
-  const handleCloseBackdrop = () => {
-    if (messageInputRef.current) {
-      messageInputRef.current.value = "";
-      setEditableMessage({ message: null });
-    }
-  };
+  const showAlertMessage = !lastMessageInViewPort && newMessagesCount > 0;
 
   return (
     <Stack>
@@ -135,10 +127,7 @@ const ChatView = () => {
         bgcolor={colors.grey["200"]}
         zIndex={10}
       >
-        <ChatTopBar
-          conversation={conversation!}
-          participants={partyParticipants!}
-        />
+        <ChatTopBar />
       </Stack.Segment>
 
       {/* Chat Messages  */}
@@ -147,63 +136,62 @@ const ChatView = () => {
         width={"100%"}
         overflow={"auto"}
         display={"flex"}
+        height={"100%"}
       >
-        {editableMessage.message && (
-          <MessageBackdrop onClick={handleCloseBackdrop} />
-        )}
-        <List sx={{ width: "100%" }}>
-          {messages?.map((message, index) => {
-            return (
-              <Box key={message.sid}>
+        {selectedMessage && <MessageBackdrop onClick={selectMessage} />}
+        {messages?.length ? (
+          <List sx={{ width: "100%" }}>
+            {messages?.map((message, index) => (
+              <Box
+                key={message.sid}
+                ref={(ref) =>
+                  (messageRefs.current[message.sid] = ref as HTMLDivElement)
+                }
+                data-index={message.index}
+              >
                 <MessageDateLine
                   message={message}
                   beforeMessage={messages?.[index - 1]}
                   isFirstMessage={message.sid === messages[0].sid}
                 />
+                {index === messages.length - 1 && <div ref={messagesEndRef} />}
                 <MessageUI
                   message={message}
                   isRead={message.index <= lastMessageIndexReadByParticipants}
-                  onSelectMessage={handleSelectMessage}
                 />
               </Box>
-            );
-          })}
-          {messages?.length === 0 && (
-            <Box display={"flex"} justifyContent={"center"} p={2}>
-              <Typography variant={"body1"}>No messages yet.</Typography>
-            </Box>
-          )}
-          <div ref={messagesEndRef} />
-        </List>
+            ))}
+          </List>
+        ) : (
+          <Box
+            width={"100%"}
+            display={"flex"}
+            justifyContent={"center"}
+            alignItems={"center"}
+            p={2}
+          >
+            <Typography
+              variant={"body1"}
+              color={"text.secondary"}
+              sx={{ fontStyle: "italic" }}
+            >
+              No messages yet.
+            </Typography>
+          </Box>
+        )}
       </Stack.Segment>
 
       {/* Chat Input Tools */}
-      <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={10}>
-        {editableMessage.message && (
-          <MessageSelectedPlaceHolder
-            message={editableMessage.message}
-            onClose={handleCloseBackdrop}
-          />
-        )}
-        <TextField
-          inputRef={messageInputRef}
-          label="Type a message"
-          name="message"
-          variant="outlined"
-          defaultValue={""}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          InputProps={{
-            onKeyDown: handleTyping,
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={handleSendMessage}>
-                  <SendIcon />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
+      <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={1}>
+        <MessageAlert
+          show={showAlertMessage}
+          text={`New messages: ${newMessagesCount}`}
+          color="info"
+          onClickAlert={() =>
+            messages && goToMessage(messages[messages.length - 1])
+          }
         />
+        <ChatForm goToLastMessage={goToLastMessage} />
       </Stack.Segment>
     </Stack>
   );

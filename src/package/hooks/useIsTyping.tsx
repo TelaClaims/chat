@@ -1,7 +1,7 @@
 import { Conversation, Participant } from "@twilio/conversations";
 import { useEffect, useState } from "react";
 
-export const useIsTyping = (conversation: Conversation) => {
+export const useIsTyping = (conversation?: Conversation) => {
   const [participant, setParticipant] = useState<Participant>();
   const [isTyping, setIsTyping] = useState<boolean>(false);
 
@@ -16,6 +16,10 @@ export const useIsTyping = (conversation: Conversation) => {
       setIsTyping(false);
     };
 
+    if (!conversation) {
+      return;
+    }
+
     conversation.on("typingStarted", handleTypingStarted);
     conversation.on("typingEnded", handleTypingEnded);
 
@@ -23,7 +27,7 @@ export const useIsTyping = (conversation: Conversation) => {
       conversation.off("typingStarted", handleTypingStarted);
       conversation.off("typingEnded", handleTypingEnded);
     };
-  }, []);
+  }, [conversation]);
 
   return { participant, isTyping };
 };

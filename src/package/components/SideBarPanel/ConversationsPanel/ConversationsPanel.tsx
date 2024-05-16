@@ -46,11 +46,6 @@ export const ConversationsPanel = () => {
   return (
     <List>
       {conversations.map((conversation) => {
-        // const partyParticipants = Array.from(
-        //   conversation._participants.values()
-        // ).filter(
-        //   (participant) => participant.identity !== client?.user?.identity
-        // );
         return (
           <ConversationItem
             key={conversation.sid}

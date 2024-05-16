@@ -1,19 +1,25 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
-import { Avatar, Box, IconButton, Typography } from "@mui/material";
-import { Conversation, Participant } from "@twilio/conversations";
+import { Avatar, Box, IconButton, Tooltip, Typography } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { useIsTyping } from "@/package/hooks";
+import {
+  Contact,
+  ConversationAttributes,
+  UserAttributes,
+} from "@/package/types";
+import { User } from "@twilio/conversations";
+import PhoneIcon from "@mui/icons-material/Phone";
+import { Badge } from "../Badge/Badge";
 
-interface Props {
-  conversation: Conversation;
-  participants: Participant[];
-}
-
-export const ChatTopBar = ({ conversation, participants }: Props) => {
-  const { contactSelected } = useChat();
+export const ChatTopBar = () => {
+  const { activeConversation } = useChat();
+  const { conversation, partyUsers } = activeConversation || {};
   const { clearSelectedContact, setView } = useChatDispatch();
-  const { participant: typingParticipant, isTyping } =
-    useIsTyping(conversation);
+  const { isTyping } = useIsTyping(conversation);
+
+  const conversationAttributes =
+    conversation?.attributes as ConversationAttributes;
+  const { type } = conversationAttributes;
 
   const handleCloseChat = () => {
     clearSelectedContact();
@@ -33,28 +39,61 @@ export const ChatTopBar = ({ conversation, participants }: Props) => {
         <ChevronLeftIcon />
       </IconButton>
       <Box display={"flex"} gap={1}>
-        <Avatar
-          alt={contactSelected?.label}
-          src={contactSelected?.avatar || "/"}
-        />
-        <Box display={"flex"} flexDirection={"column"} height={"100%"}>
-          {participants?.map((participant) => {
-            return (
-              <Box key={participant.sid}>
-                <Typography variant={"body1"} key={participant.identity}>
-                  {participant.identity}
-                </Typography>
-                <Typography variant={"body2"}>
-                  {isTyping &&
-                    typingParticipant?.identity === participant.identity &&
-                    "is typing..."}
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box>
+        {type === "individual" && (
+          <IndividualConversation user={partyUsers![0]} isTyping={isTyping} />
+        )}
       </Box>
       <span></span>
+    </Box>
+  );
+};
+
+const IndividualConversation = ({
+  user,
+  isTyping,
+}: {
+  user: User;
+  isTyping: boolean;
+}) => {
+  const userAttributes = user.attributes as UserAttributes;
+  const contact = Contact.buildContact({
+    ...userAttributes.contact,
+    status: user.isOnline ? "available" : "offline",
+  });
+
+  return (
+    <Box display={"flex"} gap={1}>
+      <Box position={"relative"}>
+        <Avatar
+          src={contact?.avatar || "/"}
+          alt={contact?.label}
+          sx={{
+            width: 40,
+            height: 40,
+            border: "1px solid ",
+          }}
+        >
+          {contact.type === "phone" && <PhoneIcon sx={{ fontSize: 40 }} />}
+        </Avatar>
+        <Tooltip
+          title={
+            <Typography variant={"body2"} fontSize={10}>
+              {contact.status.label}
+            </Typography>
+          }
+          placement="right"
+        >
+          <span>
+            <Badge color={contact.status.color} size="small" />
+          </span>
+        </Tooltip>
+      </Box>
+      <Box display={"flex"} flexDirection={"column"} height={"100%"}>
+        <Typography variant={"body1"} key={contact.identity}>
+          {contact.label}
+        </Typography>
+        <Typography variant={"body2"}>{isTyping && "is typing..."}</Typography>
+      </Box>
     </Box>
   );
 };

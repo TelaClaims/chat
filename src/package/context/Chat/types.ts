@@ -4,6 +4,7 @@ import {
   Conversation,
   Message,
   Participant,
+  User,
 } from "@twilio/conversations";
 
 export type Views = "inactive" | "active" | "lookup" | "contact" | "on-chat";
@@ -25,7 +26,12 @@ export type InitialState = {
     conversation: Conversation;
     messages: Message[];
     partyParticipants: Participant[];
+    partyUsers: User[];
     messagesUnreadCount: number | null;
+  };
+  selectedMessage?: {
+    message: Message;
+    reason: "copy" | "edit" | "delete";
   };
 };
 
@@ -38,7 +44,8 @@ export type ChatAction = {
     | "setConversations"
     | "selectContact"
     | "setActiveConversation"
-    | "updateParticipantTyping";
+    | "updateParticipantTyping"
+    | "selectMessage";
   payload: Partial<InitialState>;
 };
 
@@ -51,4 +58,8 @@ export type ChatDispatch = {
   selectContact: (contact: ContactInput, view?: Views) => void;
   clearSelectedContact: () => void;
   startConversation: (contact: Contact) => Promise<void>;
+  selectMessage: (
+    message?: Message,
+    reason?: "copy" | "edit" | "delete"
+  ) => void;
 };

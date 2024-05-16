@@ -5,14 +5,18 @@ import { InitialState, ChatAction, Views } from "./types";
 import {
   Client,
   ConversationBindings,
+  JSONValue,
   Message,
   Participant,
   ParticipantType,
+  User,
 } from "@twilio/conversations";
 import {
   ChatSettings,
   Contact,
   ContactInput,
+  ConversationAttributes,
+  UserAttributes,
   defaultChatSettings,
 } from "@/package/types";
 import { log } from "@/package/utils";
@@ -63,6 +67,13 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
         ...state,
         activeConversation: action.payload
           .activeConversation as InitialState["activeConversation"],
+      };
+    }
+    case "selectMessage": {
+      return {
+        ...state,
+        selectedMessage: action.payload
+          .selectedMessage as InitialState["selectedMessage"],
       };
     }
     default: {
@@ -116,6 +127,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Initialization
     client.on("initialized", () => {
       console.log("Client initialized successfully");
+
+      const userAttributes: UserAttributes = {
+        contact: chatRef.current.contact.toJSON(),
+      };
+
+      client.user.updateAttributes(userAttributes as JSONValue);
       clearAlert();
     });
 
@@ -168,12 +185,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Conversation Events
     client.on("conversationJoined", (conversation) => {
       log("log", "Conversation joined", { conversation });
-      dispatch({
-        type: "setConversations",
-        payload: {
-          conversations: [...chatRef.current.conversations, conversation],
-        },
-      });
+      // dispatch({
+      //   type: "setConversations",
+      //   payload: {
+      //     conversations: [...chatRef.current.conversations, conversation],
+      //   },
+      // });
     });
 
     client.on("conversationLeft", (conversation) => {
@@ -324,9 +341,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region User Events
     client.on("userSubscribed", async (user) => {
       log("log", "User subscribed", { user });
-      // await user.updateAttributes({
-      //   ...chatRef.current.contact.toJSON(),
-      // } as JSONValue);
     });
 
     client.on("userUnsubscribed", (user) => {
@@ -413,7 +427,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     if (view === "on-chat") {
-      await selectConversation(contactSelected.identity);
+      const conversation = findConversationByIdentity(contactSelected.identity);
+      if (conversation) {
+        await selectConversation(conversation?.sid);
+      }
     }
     dispatch({ type: "setView", payload: { view: view || "contact" } });
   };
@@ -449,17 +466,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // check if conversation already exists using uniqueName looking for both identity participants as uniqueName
-      const existingConversation = chat.conversations.find(
-        (conversation) =>
-          conversation.uniqueName ===
-            `${chat.contact.identity} - ${contact.identity}` ||
-          conversation.uniqueName ===
-            `${contact.identity} - ${chat.contact.identity}`
-      );
+      const conversations = (await client.getSubscribedConversations()).items;
+
+      const existingConversation = conversations.find((conversation) => {
+        const conversationAttributes =
+          conversation.attributes as ConversationAttributes;
+
+        return (
+          conversationAttributes.type === "individual" &&
+          conversationAttributes.participants.includes(contact.identity)
+        );
+      });
 
       if (existingConversation) {
-        await selectConversation(contact.identity);
+        await selectConversation(existingConversation.sid);
         dispatch({ type: "setView", payload: { view: "on-chat" } });
         return;
       }
@@ -467,6 +487,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const conversation = await client.createConversation({
         friendlyName: `${chat.contact.identity} - ${contact.identity}`,
         uniqueName: `${chat.contact.identity} - ${contact.identity}`,
+        attributes: {
+          type: "individual",
+          participants: [chat.contact.identity, contact.identity],
+        } as ConversationAttributes,
       });
 
       if (contact.type === "identifier") {
@@ -482,8 +506,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // );
       }
       await conversation.join();
-
-      await selectConversation(contact.identity);
+      await selectConversation(conversation.sid);
       dispatch({ type: "setView", payload: { view: "on-chat" } });
     } catch (error) {
       setAlert({
@@ -528,41 +551,102 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   //   return conversations;
   // };
 
-  const selectConversation = async (identity: string) => {
-    const conversation = findConversationByIdentity(identity);
+  const selectConversation = async (conversationSid: string) => {
+    const { client } = chatRef.current;
+    if (!client) {
+      throw new Error("Client is not initialized");
+    }
+
+    const conversation = await client.getConversationBySid(conversationSid);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
     let messages: Message[] = [];
     let participants: Participant[] = [];
     let partyParticipants: Participant[] = [];
+    let partyUsers: User[] = [];
     let messagesUnreadCount: number | null = null;
 
-    if (conversation) {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          loading: true,
+        },
+      },
+    });
+
+    messages = (await conversation.getMessages(30)).items;
+    participants = await conversation.getParticipants();
+    partyParticipants = participants.filter(
+      (participant) => participant.identity !== chat.contact.identity
+    );
+    partyUsers = await Promise.all(
+      partyParticipants.map(async (participant) => {
+        return await participant.getUser();
+      })
+    );
+    messagesUnreadCount = await conversation.getUnreadMessagesCount();
+
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          loading: false,
+          conversation,
+          messages,
+          partyParticipants,
+          partyUsers,
+          messagesUnreadCount,
+        },
+      },
+    });
+  };
+
+  const selectMessage = (
+    message?: Message,
+    reason?: "copy" | "edit" | "delete"
+  ) => {
+    if (!reason || !message) {
       dispatch({
-        type: "setActiveConversation",
+        type: "selectMessage",
         payload: {
-          activeConversation: {
-            ...chatRef.current.activeConversation!,
-            loading: true,
+          selectedMessage: undefined,
+        },
+      });
+      return;
+    }
+    if (reason === "edit") {
+      if (message.body?.trim() === "") {
+        return;
+      }
+
+      // messageInputRef.current.value = message.body || "";
+      // messageInputRef.current?.focus();
+      dispatch({
+        type: "selectMessage",
+        payload: {
+          selectedMessage: {
+            message,
+            reason: "edit",
           },
         },
       });
-      messages = (await conversation.getMessages(30)).items;
-      participants = await conversation.getParticipants();
-      partyParticipants = participants.filter(
-        (participant) => participant.identity !== chat.contact.identity
-      );
-      messagesUnreadCount = await conversation.getUnreadMessagesCount();
-
-      dispatch({
-        type: "setActiveConversation",
-        payload: {
-          activeConversation: {
-            loading: false,
-            conversation,
-            messages,
-            partyParticipants,
-            messagesUnreadCount,
-          },
-        },
+    }
+    if (reason === "delete") {
+      message.remove();
+      setAlert({
+        message: "Message deleted",
+        type: "info",
+      });
+    }
+    if (reason === "copy") {
+      navigator.clipboard.writeText(message.body || "");
+      setAlert({
+        message: "Message copied to clipboard",
+        type: "info",
       });
     }
   };
@@ -580,6 +664,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             selectContact,
             clearSelectedContact,
             startConversation,
+            selectMessage,
           }}
         >
           {children}

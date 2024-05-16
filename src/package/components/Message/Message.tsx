@@ -1,5 +1,5 @@
 import { Message } from "@twilio/conversations";
-import { useChat } from "@/package/context/Chat/context";
+import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box, ListItem, Typography, colors } from "@mui/material";
 import { useRef, useState } from "react";
 import { useMessageReadIntersection } from "./useMessageReadIntersection";
@@ -10,14 +10,11 @@ import { useOnMessageUpdated } from "@/package/hooks";
 interface Props {
   message: Message;
   isRead: boolean;
-  onSelectMessage: (
-    message: Message,
-    reason: "copy" | "edit" | "delete"
-  ) => void;
 }
 
-export const MessageUI = ({ message, isRead, onSelectMessage }: Props) => {
+export const MessageUI = ({ message, isRead }: Props) => {
   const { contact } = useChat();
+  const { selectMessage } = useChatDispatch();
   const [showMenu, setShowMenu] = useState(false);
   const messageRef = useRef(null);
   useMessageReadIntersection({ message, ref: messageRef });
@@ -44,7 +41,7 @@ export const MessageUI = ({ message, isRead, onSelectMessage }: Props) => {
     >
       {direction === "outgoing" && showMenu && (
         <MessageMenu
-          onClickOption={(reason) => onSelectMessage(message, reason)}
+          onClickOption={(reason) => selectMessage(message, reason)}
         />
       )}
       <Box

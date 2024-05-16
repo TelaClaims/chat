@@ -16,4 +16,5 @@ export const CHAT_DISPATCH: ChatDispatch = {
   selectContact: () => {},
   clearSelectedContact: () => {},
   startConversation: () => Promise.resolve(),
+  selectMessage: () => {},
 };

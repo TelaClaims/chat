@@ -12,3 +12,6 @@ export { MessageMenu } from "./MessageMenu/MessageMenu";
 export { MessageDateLine } from "./MessageDateLine/MessageDateLine";
 export { MessageBackdrop } from "./MessageBackdrop/MessageBackdrop";
 export { MessageSelectedPlaceHolder } from "./MessageSelectedPlaceHolder/MessageSelectedPlaceHolder";
+export { Badge } from "./Badge/Badge";
+export { MessageAlert } from "./MessageAlert/MessageAlert";
+export { ChatForm } from "./ChatForm/ChatForm";
