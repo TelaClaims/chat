@@ -1,19 +1,30 @@
 import {
   Conversation,
+  Message,
   Participant,
   ParticipantUpdateReason,
 } from "@twilio/conversations";
 import { useEffect, useState } from "react";
 import { useChat } from "../context/Chat/context";
 
-export const useOnLastReadMessageByParticipants = (
-  conversation: Conversation
+export const useLastMessageRead = (
+  conversation: Conversation,
+  messages: Message[]
 ) => {
   const { client } = useChat();
-  const [
-    lastMessageIndexReadByParticipants,
-    setLastMessageIndexReadByParticipants,
-  ] = useState(0);
+  const [lastMessageReadByParticipants, setLastMessageReadByParticipants] =
+    useState<{ index: number; message: Message | null }>({
+      index: 0,
+      message: null,
+    });
+
+  const [lastMessageReadByClient, setLastMessageReadByClient] = useState<{
+    index: number;
+    message: Message | null;
+  }>({
+    index: 0,
+    message: null,
+  });
 
   useEffect(() => {
     const checkLastReadMessageIndexByParticipants = () => {
@@ -35,7 +46,16 @@ export const useOnLastReadMessageByParticipants = (
         }
       });
 
-      setLastMessageIndexReadByParticipants(messageIndex);
+      const message = messages.find(
+        (message) => message.index === messageIndex
+      );
+
+      if (message) {
+        setLastMessageReadByParticipants({
+          index: messageIndex,
+          message: messages[messageIndex],
+        });
+      }
     };
 
     const onParticipantUpdated = ({
@@ -59,7 +79,22 @@ export const useOnLastReadMessageByParticipants = (
     return () => {
       conversation.off("participantUpdated", onParticipantUpdated);
     };
-  }, [client?.user.identity, conversation]);
+  }, [client?.user.identity, conversation, messages]);
 
-  return { lastMessageIndexReadByParticipants };
+  useEffect(() => {
+    if (messages && conversation.lastReadMessageIndex) {
+      const message = messages.find(
+        (message) => message.index === conversation.lastReadMessageIndex
+      );
+
+      if (message) {
+        setLastMessageReadByClient({
+          index: conversation.lastReadMessageIndex,
+          message,
+        });
+      }
+    }
+  }, [conversation.lastReadMessageIndex, messages]);
+
+  return { lastMessageReadByParticipants, lastMessageReadByClient };
 };

@@ -1,7 +1,7 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Stack } from "@/package/layouts/Stack";
 import { Box, CircularProgress, List, Typography, colors } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   ChatForm,
   ChatTopBar,
@@ -11,7 +11,8 @@ import {
   MessageUI,
 } from "@/package/components";
 import {
-  useOnLastReadMessageByParticipants,
+  useElementInViewPort,
+  useLastMessageRead,
   useOnUpdateNewMessagesCount,
 } from "@/package/hooks";
 import { Message } from "@twilio/conversations";
@@ -21,76 +22,28 @@ const ChatView = () => {
   const { selectMessage } = useChatDispatch();
   const { loading, conversation, messages } = activeConversation || {};
 
-  const [lastMessageInViewPort, setLastMessageInViewPort] = useState(false);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Refs for each message
 
-  const { lastMessageIndexReadByParticipants } =
-    useOnLastReadMessageByParticipants(conversation!);
+  // get the last message read by all party participants (use it to know the checkmark status of the message)
+  const { lastMessageReadByParticipants, lastMessageReadByClient } =
+    useLastMessageRead(conversation!, messages!);
 
+  // get the new messages count (use it to show the alert message and display the number of new messages)
   const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation!);
 
-  useEffect(() => {
-    if (conversation && messageRefs.current) {
-      const lastReadMessageIndex = conversation.lastReadMessageIndex;
-      const messagesElements = Object.values(messageRefs.current);
+  // get if the last message is in the viewport
+  const { isInViewPort: lastMessageInViewPort } = useElementInViewPort(
+    messagesEndRef.current
+  );
 
-      // Scroll to last read message
-      if (lastReadMessageIndex && messagesElements.length) {
-        const lastElementToScrollTo = messagesElements.find((element) => {
-          const index = element?.getAttribute("data-index");
-          return index && parseInt(index) === lastReadMessageIndex;
-        });
-        if (lastElementToScrollTo) {
-          lastElementToScrollTo.scrollIntoView({ behavior: "auto" });
-        }
-      }
-    }
-  }, [conversation, messageRefs]);
-
-  useEffect(() => {
-    if (!messagesEndRef.current) {
-      return;
-    }
-
-    const messageEndElement = messagesEndRef.current;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          if (!lastMessageInViewPort) {
-            setLastMessageInViewPort(true);
-          }
-        } else {
-          if (lastMessageInViewPort) {
-            setLastMessageInViewPort(false);
-          }
-        }
-      },
-      {
-        root: null,
-        threshold: 0,
-      }
-    );
-
-    observer.observe(messageEndElement);
-
-    return () => {
-      observer.unobserve(messageEndElement);
-    };
-  }, [messagesEndRef, messages, lastMessageInViewPort]);
-
-  useEffect(() => {
-    if (newMessagesCount > 0 && lastMessageInViewPort) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-    }
-  }, [lastMessageInViewPort, newMessagesCount]);
-
-  const goToMessage = (message: Message) => {
+  const goToMessage = (
+    message: Message,
+    scrollIntoViewOptions?: ScrollIntoViewOptions
+  ) => {
     const messageElement = messageRefs.current[message.sid];
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      messageElement.scrollIntoView(scrollIntoViewOptions);
     }
   };
 
@@ -98,9 +51,27 @@ const ChatView = () => {
     const messageElement =
       messageRefs.current[messages![messages!.length - 1].sid];
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: "auto", block: "center" });
+      messageElement.scrollIntoView({ behavior: "auto" });
     }
   };
+
+  // scroll to the last message read by the client
+  useEffect(() => {
+    if (lastMessageReadByClient?.message) {
+      goToMessage(lastMessageReadByClient.message, {
+        behavior: "auto",
+        block: "end",
+      });
+    }
+  }, [lastMessageReadByClient?.message]);
+
+  // scroll to the last message when new messages are added and the last message is in the viewport
+  useEffect(() => {
+    if (newMessagesCount > 0 && lastMessageInViewPort) {
+      goToLastMessage();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessageInViewPort, newMessagesCount]);
 
   if (loading) {
     return (
@@ -157,7 +128,7 @@ const ChatView = () => {
                 {index === messages.length - 1 && <div ref={messagesEndRef} />}
                 <MessageUI
                   message={message}
-                  isRead={message.index <= lastMessageIndexReadByParticipants}
+                  isRead={message.index <= lastMessageReadByParticipants.index}
                 />
               </Box>
             ))}
@@ -188,7 +159,8 @@ const ChatView = () => {
           text={`New messages: ${newMessagesCount}`}
           color="info"
           onClickAlert={() =>
-            messages && goToMessage(messages[messages.length - 1])
+            messages &&
+            goToMessage(messages[messages.length - 1], { behavior: "smooth" })
           }
         />
         <ChatForm goToLastMessage={goToLastMessage} />
