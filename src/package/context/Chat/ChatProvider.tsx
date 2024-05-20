@@ -578,7 +578,24 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       },
     });
 
-    messages = (await conversation.getMessages(30)).items;
+    const totalToFetch = 30;
+    const lastMessageReadByClientIndex = conversation.lastReadMessageIndex || 0;
+    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
+
+    if (unreadMessagesCount === 0) {
+      messages = (await conversation.getMessages(totalToFetch)).items;
+    } else {
+      const anchor =
+        lastMessageReadByClientIndex + Math.floor(totalToFetch / 2);
+      messages = (await conversation.getMessages(totalToFetch, anchor)).items;
+    }
+
+    console.log({
+      totalToFetch,
+      lastMessageReadByClientIndex,
+      messages,
+    });
+
     participants = await conversation.getParticipants();
     partyParticipants = participants.filter(
       (participant) => participant.identity !== chat.contact.identity
