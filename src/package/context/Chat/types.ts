@@ -3,6 +3,7 @@ import {
   Client,
   Conversation,
   Message,
+  Paginator,
   Participant,
   User,
 } from "@twilio/conversations";
@@ -28,6 +29,8 @@ export type InitialState = {
     partyParticipants: Participant[];
     partyUsers: User[];
     messagesUnreadCount: number | null;
+    messageToInitialScrollTo?: Message;
+    messagesPaginator?: Paginator<Message>;
   };
   selectedMessage?: {
     message: Message;
@@ -62,4 +65,5 @@ export type ChatDispatch = {
     message?: Message,
     reason?: "copy" | "edit" | "delete"
   ) => void;
+  fetchMoreMessages: (direction: "prev" | "next") => Promise<void>;
 };

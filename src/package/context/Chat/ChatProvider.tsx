@@ -7,6 +7,7 @@ import {
   ConversationBindings,
   JSONValue,
   Message,
+  Paginator,
   Participant,
   ParticipantType,
   User,
@@ -562,11 +563,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Conversation not found");
     }
 
+    let messagesPaginator: Paginator<Message>;
     let messages: Message[] = [];
     let participants: Participant[] = [];
     let partyParticipants: Participant[] = [];
     let partyUsers: User[] = [];
     let messagesUnreadCount: number | null = null;
+    let messageToInitialScrollTo: Message | undefined;
 
     dispatch({
       type: "setActiveConversation",
@@ -578,23 +581,24 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       },
     });
 
-    const totalToFetch = 30;
+    const totalToFetch = 10;
     const lastMessageReadByClientIndex = conversation.lastReadMessageIndex || 0;
     const unreadMessagesCount = await conversation.getUnreadMessagesCount();
 
     if (unreadMessagesCount === 0) {
-      messages = (await conversation.getMessages(totalToFetch)).items;
+      messagesPaginator = await conversation.getMessages(totalToFetch);
+      messages = messagesPaginator.items;
+      messageToInitialScrollTo = messages[messages.length - 1];
     } else {
       const anchor =
         lastMessageReadByClientIndex + Math.floor(totalToFetch / 2);
-      messages = (await conversation.getMessages(totalToFetch, anchor)).items;
+      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
+      messages = messagesPaginator.items;
+      messageToInitialScrollTo = messages.find(
+        (message) => message.index === lastMessageReadByClientIndex
+      );
+      messages;
     }
-
-    console.log({
-      totalToFetch,
-      lastMessageReadByClientIndex,
-      messages,
-    });
 
     participants = await conversation.getParticipants();
     partyParticipants = participants.filter(
@@ -617,9 +621,61 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           partyParticipants,
           partyUsers,
           messagesUnreadCount,
+          messageToInitialScrollTo,
+          messagesPaginator,
         },
       },
     });
+  };
+
+  const fetchMoreMessages = async (direction: "prev" | "next") => {
+    const { activeConversation } = chatRef.current;
+    if (!activeConversation) {
+      return;
+    }
+
+    const { messagesPaginator } = activeConversation;
+    if (!messagesPaginator) {
+      return;
+    }
+
+    let newMessagesPaginator: Paginator<Message>;
+
+    if (direction === "prev") {
+      // newMessagesPaginator = await messagesPaginator.prevPage();
+      newMessagesPaginator = await activeConversation.conversation.getMessages(
+        activeConversation.messages.length + 10,
+        // activeConversation.messages[0].index - 1
+      );
+      const messages = newMessagesPaginator.items;
+
+      dispatch({
+        type: "setActiveConversation",
+        payload: {
+          activeConversation: {
+            ...activeConversation,
+            messagesPaginator: newMessagesPaginator,
+            messages: [...messages],
+          },
+        },
+      });
+    }
+
+    if (direction === "next") {
+      newMessagesPaginator = await messagesPaginator.nextPage();
+      const messages = newMessagesPaginator.items;
+
+      dispatch({
+        type: "setActiveConversation",
+        payload: {
+          activeConversation: {
+            ...activeConversation,
+            messagesPaginator: newMessagesPaginator,
+            messages: [...messages],
+          },
+        },
+      });
+    }
   };
 
   const selectMessage = (
@@ -682,6 +738,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             clearSelectedContact,
             startConversation,
             selectMessage,
+            fetchMoreMessages,
           }}
         >
           {children}

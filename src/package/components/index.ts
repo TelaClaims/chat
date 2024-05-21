@@ -15,3 +15,5 @@ export { MessageSelectedPlaceHolder } from "./MessageSelectedPlaceHolder/Message
 export { Badge } from "./Badge/Badge";
 export { MessageAlert } from "./MessageAlert/MessageAlert";
 export { ChatForm } from "./ChatForm/ChatForm";
+export { ChatScrollContainer } from "./ChatScrollContainer/ChatScrollContainer";
+export { MessageAlertScrollToBottom } from "./MessageAlertScrollToBottom/MessageAlertScrollToBottom";

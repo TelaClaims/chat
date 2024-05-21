@@ -6,36 +6,79 @@ import {
   ChatForm,
   ChatTopBar,
   MessageAlert,
+  MessageAlertScrollToBottom,
   MessageBackdrop,
   MessageDateLine,
   MessageUI,
 } from "@/package/components";
 import {
-  useElementInViewPort,
   useLastMessageRead,
   useOnUpdateNewMessagesCount,
 } from "@/package/hooks";
 import { Message } from "@twilio/conversations";
+import { useInView } from "react-intersection-observer";
 
 const ChatView = () => {
-  const { activeConversation, selectedMessage } = useChat();
-  const { selectMessage } = useChatDispatch();
-  const { loading, conversation, messages } = activeConversation || {};
+  const { activeConversation } = useChat();
+  const { fetchMoreMessages } = useChatDispatch();
+  const {
+    loading,
+    conversation,
+    messageToInitialScrollTo,
+    messagesPaginator,
+    messages,
+  } = activeConversation || {};
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Refs for each message
 
   // get the last message read by all party participants (use it to know the checkmark status of the message)
-  const { lastMessageReadByParticipants, lastMessageReadByClient } =
-    useLastMessageRead(conversation!, messages!);
+  const { lastMessageReadByParticipants } = useLastMessageRead(
+    conversation!,
+    messages!
+  );
 
   // get the new messages count (use it to show the alert message and display the number of new messages)
   const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation!);
 
-  // get if the last message is in the viewport
-  const { isInViewPort: lastMessageInViewPort } = useElementInViewPort(
-    messagesEndRef.current
+  // scroll to the last message when new messages are added and the last message is in the viewport
+  const handleLastMessageInViewPort = (inView: boolean) => {
+    if (inView && newMessagesCount > 0) {
+      goToLastMessage();
+    }
+  };
+
+  const TOP_MESSAGE_IN_VIEW_PORT_INDEX = Math.floor(messages!.length / 4);
+  const handleTopMessageInViewPort = async (inView: boolean) => {
+    if (inView && messagesPaginator?.hasPrevPage) {
+      console.log("fetching prev messages");
+      goToMessage(messages![TOP_MESSAGE_IN_VIEW_PORT_INDEX], {
+        behavior: "auto",
+      });
+      await fetchMoreMessages("prev");
+    }
+  };
+
+  const BOTTOM_MESSAGE_IN_VIEW_PORT_INDEX = Math.floor(
+    (messages!.length / 4) * 3
   );
+  const handleBottomMessageInViewPort = (inView: boolean) => {
+    if (inView && messagesPaginator?.hasNextPage) {
+      goToMessage(messages![BOTTOM_MESSAGE_IN_VIEW_PORT_INDEX], {
+        behavior: "auto",
+      });
+      fetchMoreMessages("next");
+    }
+  };
+
+  const { ref: messagesEndRef, inView: lastMessageInViewPort } = useInView({
+    onChange: handleLastMessageInViewPort,
+  });
+  const { ref: topMessageRef } = useInView({
+    onChange: handleTopMessageInViewPort,
+  });
+  const { ref: bottomMessageRef } = useInView({
+    onChange: handleBottomMessageInViewPort,
+  });
 
   const goToMessage = (
     message: Message,
@@ -55,23 +98,12 @@ const ChatView = () => {
     }
   };
 
-  // scroll to the last message read by the client
+  // scroll to the last message read by the client only on initial load
   useEffect(() => {
-    if (lastMessageReadByClient?.message) {
-      goToMessage(lastMessageReadByClient.message, {
-        behavior: "auto",
-        block: "end",
-      });
+    if (messageToInitialScrollTo) {
+      goToMessage(messageToInitialScrollTo, { behavior: "auto", block: "end" });
     }
-  }, [lastMessageReadByClient?.message]);
-
-  // scroll to the last message when new messages are added and the last message is in the viewport
-  useEffect(() => {
-    if (newMessagesCount > 0 && lastMessageInViewPort) {
-      goToLastMessage();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastMessageInViewPort, newMessagesCount]);
+  }, [messageToInitialScrollTo]);
 
   if (loading) {
     return (
@@ -85,6 +117,8 @@ const ChatView = () => {
       </Box>
     );
   }
+
+  console.log({ messages, messagesPaginator });
 
   const showAlertMessage = !lastMessageInViewPort && newMessagesCount > 0;
 
@@ -109,7 +143,7 @@ const ChatView = () => {
         display={"flex"}
         height={"100%"}
       >
-        {selectedMessage && <MessageBackdrop onClick={selectMessage} />}
+        <MessageBackdrop />
         {messages?.length ? (
           <List sx={{ width: "100%" }}>
             {messages?.map((message, index) => (
@@ -125,7 +159,13 @@ const ChatView = () => {
                   beforeMessage={messages?.[index - 1]}
                   isFirstMessage={message.sid === messages[0].sid}
                 />
-                {index === messages.length - 1 && <div ref={messagesEndRef} />}
+                {index === TOP_MESSAGE_IN_VIEW_PORT_INDEX && (
+                  <span ref={topMessageRef} />
+                )}
+                {index === messages.length - 1 && <span ref={messagesEndRef} />}
+                {index === BOTTOM_MESSAGE_IN_VIEW_PORT_INDEX && (
+                  <span ref={bottomMessageRef} />
+                )}
                 <MessageUI
                   message={message}
                   isRead={message.index <= lastMessageReadByParticipants.index}
@@ -154,6 +194,10 @@ const ChatView = () => {
 
       {/* Chat Input Tools */}
       <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={1}>
+        <MessageAlertScrollToBottom
+          show={lastMessageInViewPort}
+          onClick={goToLastMessage}
+        />
         <MessageAlert
           show={showAlertMessage}
           text={`New messages: ${newMessagesCount}`}

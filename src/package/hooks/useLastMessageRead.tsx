@@ -18,13 +18,14 @@ export const useLastMessageRead = (
       message: null,
     });
 
-  const [lastMessageReadByClient, setLastMessageReadByClient] = useState<{
-    index: number;
-    message: Message | null;
-  }>({
-    index: 0,
-    message: null,
-  });
+  // ! Not used anymore
+  // const [lastMessageReadByClient, setLastMessageReadByClient] = useState<{
+  //   index: number;
+  //   message: Message | null;
+  // }>({
+  //   index: 0,
+  //   message: null,
+  // });
 
   useEffect(() => {
     const checkLastReadMessageIndexByParticipants = () => {
@@ -81,20 +82,23 @@ export const useLastMessageRead = (
     };
   }, [client?.user.identity, conversation, messages]);
 
-  useEffect(() => {
-    if (messages && conversation.lastReadMessageIndex) {
-      const message = messages.find(
-        (message) => message.index === conversation.lastReadMessageIndex
-      );
+  // useEffect(() => {
+  //   if (messages && conversation.lastReadMessageIndex) {
+  //     const message = messages.find(
+  //       (message) => message.index === conversation.lastReadMessageIndex
+  //     );
 
-      if (message) {
-        setLastMessageReadByClient({
-          index: conversation.lastReadMessageIndex,
-          message,
-        });
-      }
-    }
-  }, [conversation.lastReadMessageIndex, messages]);
+  //     if (message) {
+  //       setLastMessageReadByClient({
+  //         index: conversation.lastReadMessageIndex,
+  //         message,
+  //       });
+  //     }
+  //   }
+  // }, [conversation.lastReadMessageIndex, messages]);
 
-  return { lastMessageReadByParticipants, lastMessageReadByClient };
+  return {
+    lastMessageReadByParticipants,
+    // lastMessageReadByClient
+  };
 };

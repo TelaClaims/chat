@@ -1,12 +1,15 @@
+import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box } from "@mui/material";
-interface Props {
-  onClick?: () => void;
-}
 
-export const MessageBackdrop = ({ onClick }: Props) => {
+export const MessageBackdrop = () => {
+  const { selectedMessage } = useChat();
+  const { selectMessage } = useChatDispatch();
+
+  if (!selectedMessage) return null;
+
   return (
     <Box
-      onClick={onClick}
+      onClick={() => selectMessage()}
       sx={{
         position: "absolute",
         top: 0,

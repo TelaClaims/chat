@@ -57,7 +57,10 @@ export const MessageUI = ({ message, isRead }: Props) => {
             {message.author}
           </Typography>
         )}
-        <Typography variant={"body2"}>{message.body}</Typography>
+        <Typography variant={"body2"}>
+          {message.index}
+          {/* {message.body} */}
+        </Typography>
         <Box display={"flex"} alignItems={"center"} gap={1}>
           <Typography
             variant="subtitle2"
