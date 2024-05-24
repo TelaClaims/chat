@@ -352,7 +352,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     client.on("userUpdated", ({ user, updateReasons }) => {
       log("log", "User updated", { user });
       if (updateReasons.includes("reachabilityOnline")) {
-        log("log", "User is online", { user });
+        log("log", "User reachabilityOnline", { user });
       }
 
       if (updateReasons.includes("reachabilityNotifiable")) {

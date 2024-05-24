@@ -13,7 +13,7 @@ export const MessageAlertScrollToBottom = ({ show, onClick }: Props) => {
       bottom={0}
       right={16}
       sx={{
-        transform: show ? "translateY(0%)" : "translateY(-200%)",
+        transform: show ? "translateY(-200%)" : "translateY(0%)",
         transition:
           "transform 0.2s cubic-bezier(0.42, 0, 1, 1) 0.5s, opacity 0.2s cubic-bezier(0.42, 0, 1, 1)",
         opacity: 0.5,

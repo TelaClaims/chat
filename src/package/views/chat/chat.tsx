@@ -62,7 +62,9 @@ const ChatView = () => {
     }
   };
 
-  const { ref: messagesEndRef, inView: lastMessageInViewPort } = useInView();
+  const { ref: messagesEndRef, inView: messagesEndInViewPort } = useInView({
+    initialInView: true,
+  });
   const { ref: topMessageRef } = useInView({
     onChange: handleTopMessageInViewPort,
   });
@@ -149,11 +151,11 @@ const ChatView = () => {
 
   // scroll to the last message when new messages are added and the last message is in the viewport
   useEffect(() => {
-    if (lastMessageInViewPort && newMessagesCount > 0) {
+    if (messagesEndInViewPort && newMessagesCount > 0) {
       goToLastMessage();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastMessageInViewPort, newMessagesCount]);
+  }, [messagesEndInViewPort, newMessagesCount]);
 
   if (loading) {
     return (
@@ -168,7 +170,7 @@ const ChatView = () => {
     );
   }
 
-  const showAlertMessage = !lastMessageInViewPort && newMessagesCount > 0;
+  const showAlertMessage = !messagesEndInViewPort && newMessagesCount > 0;
 
   return (
     <Stack>
@@ -216,7 +218,10 @@ const ChatView = () => {
                 {index === messages.length - 1 && <span ref={messagesEndRef} />}
                 <MessageUI
                   message={message}
-                  isRead={message.index <= lastMessageReadByParticipants.index}
+                  isRead={
+                    lastMessageReadByParticipants.index !== -1 &&
+                    lastMessageReadByParticipants.index >= message.index
+                  }
                 />
               </Box>
             ))}
@@ -243,7 +248,7 @@ const ChatView = () => {
       {/* Chat Input Tools */}
       <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={1}>
         <MessageAlertScrollToBottom
-          show={lastMessageInViewPort}
+          show={!messagesEndInViewPort}
           onClick={goToLastMessage}
         />
         <MessageAlert

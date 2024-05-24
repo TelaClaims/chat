@@ -14,7 +14,7 @@ export const useLastMessageRead = (
   const { client } = useChat();
   const [lastMessageReadByParticipants, setLastMessageReadByParticipants] =
     useState<{ index: number; message: Message | null }>({
-      index: 0,
+      index: -1,
       message: null,
     });
 
@@ -33,11 +33,12 @@ export const useLastMessageRead = (
         conversation._participants.values()
       ).filter((participant) => participant.identity !== client?.user.identity);
 
-      let messageIndex = 0;
+      let messageIndex = -1;
 
       partyParticipants.forEach((participant) => {
-        if (participant.lastReadMessageIndex) {
-          if (messageIndex === 0) {
+        console.log(participant.lastReadMessageIndex);
+        if (participant.lastReadMessageIndex !== null) {
+          if (messageIndex === -1) {
             messageIndex = participant.lastReadMessageIndex;
           } else {
             if (participant.lastReadMessageIndex < messageIndex) {
