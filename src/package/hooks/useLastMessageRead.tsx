@@ -36,7 +36,6 @@ export const useLastMessageRead = (
       let messageIndex = -1;
 
       partyParticipants.forEach((participant) => {
-        console.log(participant.lastReadMessageIndex);
         if (participant.lastReadMessageIndex !== null) {
           if (messageIndex === -1) {
             messageIndex = participant.lastReadMessageIndex;

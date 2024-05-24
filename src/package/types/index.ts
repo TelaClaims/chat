@@ -8,6 +8,7 @@ import {
 } from "./ChatSettings";
 import { Handlers } from "./ChatActions";
 import { SideBarOption, SideBarProps } from "./SideBarOption";
+import { Conversation, ActiveConversation } from "./Conversation";
 
 export { Contact, type ContactInput, type ContactStatus };
 export {
@@ -20,3 +21,4 @@ export {
 
 export { type SideBarOption, type SideBarProps };
 export { type ConversationAttributes, type UserAttributes };
+export { type Conversation, type ActiveConversation };

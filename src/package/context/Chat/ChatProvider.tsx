@@ -4,24 +4,22 @@ import { INITIAL_STATE } from "./constants";
 import { InitialState, ChatAction, Views } from "./types";
 import {
   Client,
-  Conversation,
-  ConversationBindings,
+  Conversation as TwilioConversation,
   JSONValue,
   Message,
   Paginator,
-  Participant,
-  ParticipantType,
-  User,
 } from "@twilio/conversations";
 import {
+  ActiveConversation,
   ChatSettings,
   Contact,
   ContactInput,
+  Conversation,
   ConversationAttributes,
   UserAttributes,
   defaultChatSettings,
 } from "@/package/types";
-import { log } from "@/package/utils";
+import { getConversationType, log } from "@/package/utils";
 import { SideBarProvider } from "../SideBarPanel/SideBarProvider";
 
 function chatReducer(state: InitialState, action: ChatAction): InitialState {
@@ -91,12 +89,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const chatRef = useRef<InitialState>(chat);
   chatRef.current = chat;
 
-  const getEventContext = () => {
-    return {
-      view: chatRef.current.view,
-    };
-  };
-
+  //#region dispatchers
   const initializeChat = async (
     chatSettings: ChatSettings = defaultChatSettings
   ) => {
@@ -122,12 +115,437 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     dispatch({ type: "setClient", payload: { client } });
   };
 
+  const setAlert = useCallback((alert: InitialState["alert"]) => {
+    dispatch({ type: "setAlert", payload: { alert } });
+  }, []);
+
+  const clearAlert = useCallback(() => {
+    dispatch({ type: "setAlert", payload: { alert: undefined } });
+  }, []);
+
+  const setView = useCallback((view: InitialState["view"]) => {
+    dispatch({ type: "setView", payload: { view } });
+  }, []);
+
+  const setContact = (contact: ContactInput) => {
+    dispatch({
+      type: "setContact",
+      payload: { contact: Contact.buildContact(contact) },
+    });
+  };
+
+  const shutdownChat = async () => {
+    await chat.client?.shutdown();
+    dispatch({ type: "setClient", payload: { client: undefined } });
+  };
+
+  const selectContact = async (contactSelected: ContactInput, view?: Views) => {
+    const { contact, client } = chatRef.current;
+
+    if (!contact?.identity || client?.connectionState !== "connected") {
+      setAlert({
+        message: "The Chat is not ready",
+        severity: "critical",
+        type: "error",
+        context:
+          "lookupContact failed. Identity is missing or client.state is not connected.",
+      });
+      return;
+    }
+
+    if (contactSelected.identity === contact.identity) {
+      setAlert({
+        message: "You are registered as this contact.",
+        type: "error",
+        context: "selectContact failed. Cannot select yourself.",
+      });
+      return;
+    }
+
+    dispatch({
+      type: "selectContact",
+      payload: { contactSelected: Contact.buildContact(contactSelected) },
+    });
+
+    if (view === "on-chat") {
+      const conversation = findConversationByIdentity(contactSelected.identity);
+      if (conversation) {
+        await selectConversation(conversation.sid);
+      }
+    }
+    dispatch({ type: "setView", payload: { view: view || "contact" } });
+  };
+
+  const clearSelectedContact = () => {
+    dispatch({
+      type: "selectContact",
+      payload: { contactSelected: undefined },
+    });
+  };
+
+  const startConversation = async (contact: Contact) => {
+    const client = getClient();
+
+    try {
+      if (contact.type === "identifier") {
+        try {
+          await client.getUser(contact.identity);
+        } catch (error) {
+          throw new Error("User not exist in the conversation service");
+        }
+      } else {
+        setAlert({
+          message: "Start conversation with SMS not implemented yet",
+          type: "warning",
+        });
+        return;
+      }
+
+      // ! Only work for individual conversations with Users not SMS
+      const existingConversation = chat.conversations?.find(
+        ({ type, partyUsers }) => {
+          return (
+            type === "individual" &&
+            partyUsers.some((user) => user.identity === contact.identity)
+          );
+        }
+      );
+
+      if (existingConversation) {
+        await selectConversation(existingConversation.conversation.sid);
+        dispatch({ type: "setView", payload: { view: "on-chat" } });
+        return;
+      }
+
+      const conversation = await client.createConversation({
+        friendlyName: `${chat.contact.identity} - ${contact.identity}`,
+        uniqueName: `${chat.contact.identity} - ${contact.identity}`,
+        attributes: {
+          type: "individual",
+        } as ConversationAttributes,
+      });
+
+      if (contact.type === "identifier") {
+        await conversation.add(contact.identity);
+      } else {
+        // TODO: Implement SMS conversation
+        // const TWILIO_PHONE_NUMBER = "+19793303975";
+        // const BINDING_ADDRESS = "+17726465796";
+        // await conversation.addNonChatParticipant(
+        //   TWILIO_PHONE_NUMBER,
+        //   BINDING_ADDRESS,
+        //   { identity: contact.identity }
+        // );
+      }
+      await conversation.join();
+      await selectConversation(conversation.sid);
+      dispatch({ type: "setView", payload: { view: "on-chat" } });
+    } catch (error) {
+      setAlert({
+        message: "Failed to start conversation",
+        type: "error",
+        context: JSON.stringify(error),
+      });
+    }
+  };
+
+  const selectMessage = (
+    message?: Message,
+    reason?: "copy" | "edit" | "delete"
+  ) => {
+    if (!reason || !message) {
+      dispatch({
+        type: "selectMessage",
+        payload: {
+          selectedMessage: undefined,
+        },
+      });
+      return;
+    }
+    if (reason === "edit") {
+      if (message.body?.trim() === "") {
+        return;
+      }
+
+      dispatch({
+        type: "selectMessage",
+        payload: {
+          selectedMessage: {
+            message,
+            reason: "edit",
+          },
+        },
+      });
+    }
+    if (reason === "delete") {
+      message.remove();
+      setAlert({
+        message: "Message deleted",
+        type: "info",
+      });
+    }
+    if (reason === "copy") {
+      navigator.clipboard.writeText(message.body || "");
+      setAlert({
+        message: "Message copied to clipboard",
+        type: "info",
+      });
+    }
+  };
+
+  const fetchMoreMessages = async (anchorMessageIndex: number) => {
+    const { activeConversation } = chatRef.current;
+    if (!activeConversation) {
+      return;
+    }
+    const newMessagesPaginator = await getMessagePaginator(
+      activeConversation.conversation,
+      anchorMessageIndex
+    );
+    const messages = newMessagesPaginator.items;
+
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...activeConversation,
+          messagesPaginator: newMessagesPaginator,
+          messages: [...messages],
+        },
+      },
+    });
+
+    return newMessagesPaginator;
+  };
+
+  const setAutoScroll = (
+    message: Message,
+    scrollOptions?: ScrollIntoViewOptions
+  ) => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          autoScroll: {
+            message,
+            scrollOptions,
+          },
+        },
+      },
+    });
+  };
+
+  const clearMessageToInitialScrollTo = () => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          autoScroll: undefined,
+        },
+      },
+    });
+  };
+
+  const getContext = () => {
+    return {
+      ...chatRef.current,
+    };
+  };
+
+  //#endregion
+
+  //#region utils functions
+  const findConversationByIdentity = (identity: string) => {
+    if (!chat.conversations) {
+      return;
+    }
+
+    const conversation = chat.conversations.find(
+      ({ type, partyUsers }) =>
+        type === "individual" &&
+        partyUsers.some((user) => user.identity === identity)
+    );
+
+    return conversation?.conversation;
+  };
+
+  const selectConversation = async (conversationSid: string) => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          loading: true,
+        },
+      },
+    });
+
+    const {
+      conversation,
+      messages,
+      participants,
+      partyParticipants,
+      partyUsers,
+      autoScroll,
+      messagesPaginator,
+      type,
+    } = await fetchActiveConversation(conversationSid);
+
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          loading: false,
+          conversation,
+          messages,
+          participants,
+          partyParticipants,
+          partyUsers,
+          autoScroll,
+          messagesPaginator,
+          type,
+        },
+      },
+    });
+  };
+
+  const fetchConversations = async () => {
+    const client = getClient();
+    let conversations: Conversation[] = [];
+
+    const conversationsPaginator = await client.getSubscribedConversations();
+    if (conversationsPaginator.items.length) {
+      conversations = await Promise.all(
+        conversationsPaginator.items.map(async (conversation) => {
+          return await fetchConversation(conversation);
+        })
+      );
+
+      conversations.sort((a, b) => {
+        return (
+          (b.conversation.lastMessage?.dateCreated?.getTime() || 0) -
+          (a.conversation.lastMessage?.dateCreated?.getTime() || 0)
+        );
+      });
+
+      return conversations;
+    }
+  };
+
+  const fetchConversation = async (
+    conversation: TwilioConversation
+  ): Promise<Conversation> => {
+    const participants = await conversation.getParticipants();
+    const partyParticipants = participants.filter(
+      (participant) => participant.identity !== chatRef.current.contact.identity
+    );
+    const partyUsers = await Promise.all(
+      partyParticipants.map(async (participant) => {
+        return await participant.getUser();
+      })
+    );
+
+    return {
+      conversation,
+      participants,
+      partyParticipants,
+      partyUsers,
+      type: getConversationType(conversation),
+    };
+  };
+
+  const fetchActiveConversation = async (
+    conversationSid: string
+  ): Promise<ActiveConversation> => {
+    const client = getClient();
+    const conversation = await client.getConversationBySid(conversationSid);
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const { participants, partyParticipants, partyUsers, type } =
+      await fetchConversation(conversation);
+
+    let messagesPaginator: Paginator<Message>;
+    let messages: Message[] = [];
+    let autoScroll: {
+      message: Message;
+      scrollOptions?: ScrollIntoViewOptions;
+    };
+
+    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
+
+    if (unreadMessagesCount === 0) {
+      messagesPaginator = await getMessagePaginator(conversation);
+      messages = messagesPaginator.items;
+      autoScroll = {
+        message: messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
+    } else {
+      const lastMessageReadByClientIndex =
+        conversation.lastReadMessageIndex || 0;
+      messagesPaginator = await getMessagePaginator(
+        conversation,
+        lastMessageReadByClientIndex
+      );
+      messages = messagesPaginator.items;
+      autoScroll = {
+        message:
+          messages.find(
+            (message) => message.index === lastMessageReadByClientIndex
+          ) || messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
+    }
+
+    return {
+      conversation,
+      messages,
+      participants,
+      partyParticipants,
+      partyUsers,
+      autoScroll,
+      messagesPaginator,
+      type,
+    };
+  };
+
+  const getMessagePaginator = async (
+    conversation: TwilioConversation,
+    indexToFetch?: number,
+    totalToFetch: number = 100
+  ) => {
+    let messagesPaginator: Paginator<Message>;
+    const lastMessageIndex = conversation.lastMessage?.index || 0;
+    indexToFetch = indexToFetch || lastMessageIndex;
+
+    const anchor = indexToFetch + Math.floor(totalToFetch / 2);
+
+    if (anchor > lastMessageIndex) {
+      messagesPaginator = await conversation.getMessages(totalToFetch);
+    } else {
+      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
+    }
+
+    return messagesPaginator;
+  };
+
   const addClientListeners = (
     client: Client,
     events: ChatSettings["events"]
   ) => {
     //#region Initialization
-    client.on("initialized", () => {
+    client.on("initialized", async () => {
       console.log("Client initialized successfully");
 
       const userAttributes: UserAttributes = {
@@ -135,6 +553,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       };
 
       client.user.updateAttributes(userAttributes as JSONValue);
+
+      const conversations = await fetchConversations();
+
+      dispatch({
+        type: "setConversations",
+        payload: {
+          conversations,
+        },
+      });
+
       clearAlert();
     });
 
@@ -197,14 +625,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     client.on("conversationLeft", (conversation) => {
       log("log", "Conversation left", { conversation });
-      dispatch({
-        type: "setConversations",
-        payload: {
-          conversations: [
-            ...chat.conversations.filter((c) => c !== conversation),
-          ],
-        },
-      });
+      // dispatch({
+      //   type: "setConversations",
+      //   payload: {
+      //     conversations: [
+      //       ...chat.conversations.filter((c) => c !== conversation),
+      //     ],
+      //   },
+      // });
     });
 
     client.on("conversationAdded", (conversation) => {
@@ -365,7 +793,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "Push notification", { notification });
     });
 
-    client.on("stateChanged", (state) => {
+    client.on("stateChanged", async (state) => {
       if (state === "initialized") {
         log("log", "Client initialized", { state });
       }
@@ -376,75 +804,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const setAlert = useCallback((alert: InitialState["alert"]) => {
-    dispatch({ type: "setAlert", payload: { alert } });
-  }, []);
-
-  const clearAlert = useCallback(() => {
-    dispatch({ type: "setAlert", payload: { alert: undefined } });
-  }, []);
-
-  const setView = useCallback((view: InitialState["view"]) => {
-    dispatch({ type: "setView", payload: { view } });
-  }, []);
-
-  const setContact = (contact: ContactInput) => {
-    dispatch({
-      type: "setContact",
-      payload: { contact: Contact.buildContact(contact) },
-    });
-  };
-
-  const shutdownChat = async () => {
-    await chat.client?.shutdown();
-    dispatch({ type: "setClient", payload: { client: undefined } });
-  };
-
-  const selectContact = async (contactSelected: ContactInput, view?: Views) => {
-    const { contact, client } = chatRef.current;
-
-    if (!contact?.identity || client?.connectionState !== "connected") {
-      setAlert({
-        message: "The Chat is not ready",
-        severity: "critical",
-        type: "error",
-        context:
-          "lookupContact failed. Identity is missing or client.state is not connected.",
-      });
-      return;
-    }
-
-    if (contactSelected.identity === contact.identity) {
-      setAlert({
-        message: "You are registered as this contact.",
-        type: "error",
-        context: "selectContact failed. Cannot select yourself.",
-      });
-      return;
-    }
-
-    dispatch({
-      type: "selectContact",
-      payload: { contactSelected: Contact.buildContact(contactSelected) },
-    });
-
-    if (view === "on-chat") {
-      const conversation = findConversationByIdentity(contactSelected.identity);
-      if (conversation) {
-        await selectConversation(conversation?.sid);
-      }
-    }
-    dispatch({ type: "setView", payload: { view: view || "contact" } });
-  };
-
-  const clearSelectedContact = () => {
-    dispatch({
-      type: "selectContact",
-      payload: { contactSelected: undefined },
-    });
-  };
-
-  const startConversation = async (contact: Contact) => {
+  const getClient = (): Client => {
     const { client } = chatRef.current;
 
     if (!client) {
@@ -454,320 +814,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         type: "error",
         context: "startConversation failed. Client is missing.",
       });
-      return;
+      throw new Error("Client is missing");
     }
 
-    try {
-      if (contact.type === "identifier") {
-        await client.getUser(contact.identity);
-      } else {
-        setAlert({
-          message: "Start conversation with SMS not implemented yet",
-          type: "warning",
-        });
-        return;
-      }
-
-      const conversations = (await client.getSubscribedConversations()).items;
-
-      const existingConversation = conversations.find((conversation) => {
-        const conversationAttributes =
-          conversation.attributes as ConversationAttributes;
-
-        return (
-          conversationAttributes.type === "individual" &&
-          conversationAttributes.participants.includes(contact.identity)
-        );
-      });
-
-      if (existingConversation) {
-        await selectConversation(existingConversation.sid);
-        dispatch({ type: "setView", payload: { view: "on-chat" } });
-        return;
-      }
-
-      const conversation = await client.createConversation({
-        friendlyName: `${chat.contact.identity} - ${contact.identity}`,
-        uniqueName: `${chat.contact.identity} - ${contact.identity}`,
-        attributes: {
-          type: "individual",
-          participants: [chat.contact.identity, contact.identity],
-        } as ConversationAttributes,
-      });
-
-      if (contact.type === "identifier") {
-        await conversation.add(contact.identity);
-      } else {
-        // TODO: Implement SMS conversation
-        // const TWILIO_PHONE_NUMBER = "+19793303975";
-        // const BINDING_ADDRESS = "+17726465796";
-        // await conversation.addNonChatParticipant(
-        //   TWILIO_PHONE_NUMBER,
-        //   BINDING_ADDRESS,
-        //   { identity: contact.identity }
-        // );
-      }
-      await conversation.join();
-      await selectConversation(conversation.sid);
-      dispatch({ type: "setView", payload: { view: "on-chat" } });
-    } catch (error) {
-      setAlert({
-        message: "Failed to start conversation",
-        type: "error",
-        context: JSON.stringify(error),
-      });
-    }
+    return client;
   };
 
-  const findConversationByIdentity = (identity: string) => {
-    return chat.conversations.find((conversation) =>
-      Array.from(conversation._participants.values()).some((participant) => {
-        const participantType = participant.type as ParticipantType;
-        const participantBindings =
-          participant.bindings as ConversationBindings;
-
-        if (participantType === "sms") {
-          return participantBindings.sms?.address === identity;
-        }
-        if (participantType === "chat") {
-          return participant.identity === identity;
-        }
-      })
-    );
-  };
-
-  // const getParticipants = async (conversation: Conversation) => {
-  //   return await conversation.getParticipants();
-  // };
-
-  // const getConversations = async () => {
-  //   if (!chat?.client) {
-  //     throw new Error("Client is not initialized");
-  //   }
-
-  //   const conversationsPaginator: Paginator<Conversation> =
-  //     await chat.client.getSubscribedConversations();
-
-  //   const conversations: Conversation[] = conversationsPaginator.items;
-
-  //   return conversations;
-  // };
-
-  const selectConversation = async (conversationSid: string) => {
-    const { client } = chatRef.current;
-    if (!client) {
-      throw new Error("Client is not initialized");
-    }
-
-    const conversation = await client.getConversationBySid(conversationSid);
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    let messagesPaginator: Paginator<Message>;
-    let messages: Message[] = [];
-    let participants: Participant[] = [];
-    let partyParticipants: Participant[] = [];
-    let partyUsers: User[] = [];
-    let messagesUnreadCount: number | null = null;
-    let autoScroll: {
-      message: Message;
-      scrollOptions?: ScrollIntoViewOptions;
-    };
-
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          ...chatRef.current.activeConversation!,
-          loading: true,
-        },
-      },
-    });
-
-    const lastMessageReadByClientIndex = conversation.lastReadMessageIndex || 0;
-    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
-
-    if (unreadMessagesCount === 0) {
-      messagesPaginator = await getMessagePaginator(conversation);
-      messages = messagesPaginator.items;
-      autoScroll = {
-        message: messages[messages.length - 1],
-        scrollOptions: {
-          behavior: "auto",
-          block: "end",
-        },
-      };
-    } else {
-      messagesPaginator = await getMessagePaginator(
-        conversation,
-        lastMessageReadByClientIndex
-      );
-      messages = messagesPaginator.items;
-      autoScroll = {
-        message:
-          messages.find(
-            (message) => message.index === lastMessageReadByClientIndex
-          ) || messages[messages.length - 1],
-        scrollOptions: {
-          behavior: "auto",
-          block: "end",
-        },
-      };
-    }
-
-    participants = await conversation.getParticipants();
-    partyParticipants = participants.filter(
-      (participant) => participant.identity !== chat.contact.identity
-    );
-    partyUsers = await Promise.all(
-      partyParticipants.map(async (participant) => {
-        return await participant.getUser();
-      })
-    );
-    messagesUnreadCount = await conversation.getUnreadMessagesCount();
-
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          loading: false,
-          conversation,
-          messages,
-          partyParticipants,
-          partyUsers,
-          messagesUnreadCount,
-          autoScroll,
-          messagesPaginator,
-        },
-      },
-    });
-  };
-
-  const fetchMoreMessages = async (anchorMessageIndex: number) => {
-    const { activeConversation } = chatRef.current;
-    if (!activeConversation) {
-      return;
-    }
-    const newMessagesPaginator = await getMessagePaginator(
-      activeConversation.conversation,
-      anchorMessageIndex
-    );
-    const messages = newMessagesPaginator.items;
-
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          ...activeConversation,
-          messagesPaginator: newMessagesPaginator,
-          messages: [...messages],
-        },
-      },
-    });
-
-    return newMessagesPaginator;
-  };
-
-  const selectMessage = (
-    message?: Message,
-    reason?: "copy" | "edit" | "delete"
-  ) => {
-    if (!reason || !message) {
-      dispatch({
-        type: "selectMessage",
-        payload: {
-          selectedMessage: undefined,
-        },
-      });
-      return;
-    }
-    if (reason === "edit") {
-      if (message.body?.trim() === "") {
-        return;
-      }
-
-      dispatch({
-        type: "selectMessage",
-        payload: {
-          selectedMessage: {
-            message,
-            reason: "edit",
-          },
-        },
-      });
-    }
-    if (reason === "delete") {
-      message.remove();
-      setAlert({
-        message: "Message deleted",
-        type: "info",
-      });
-    }
-    if (reason === "copy") {
-      navigator.clipboard.writeText(message.body || "");
-      setAlert({
-        message: "Message copied to clipboard",
-        type: "info",
-      });
-    }
-  };
-
-  const getMessagePaginator = async (
-    conversation: Conversation,
-    indexToFetch?: number,
-    totalToFetch: number = 100
-  ) => {
-    let messagesPaginator: Paginator<Message>;
-    const lastMessageIndex = conversation.lastMessage?.index || 0;
-    indexToFetch = indexToFetch || lastMessageIndex;
-
-    const anchor = indexToFetch + Math.floor(totalToFetch / 2);
-
-    if (anchor > lastMessageIndex) {
-      messagesPaginator = await conversation.getMessages(totalToFetch);
-    } else {
-      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
-    }
-
-    return messagesPaginator;
-  };
-
-  const setAutoScroll = (
-    message: Message,
-    scrollOptions?: ScrollIntoViewOptions
-  ) => {
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          ...chatRef.current.activeConversation!,
-          autoScroll: {
-            message,
-            scrollOptions,
-          },
-        },
-      },
-    });
-  };
-
-  const clearMessageToInitialScrollTo = () => {
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          ...chatRef.current.activeConversation!,
-          autoScroll: undefined,
-        },
-      },
-    });
-  };
-
-  const getContext = () => {
+  const getEventContext = () => {
     return {
-      ...chatRef.current,
+      view: chatRef.current.view,
     };
   };
+  //#endregion
 
   return (
     <SideBarProvider>

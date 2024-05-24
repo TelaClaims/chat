@@ -45,7 +45,7 @@ export const SideBarPanel = ({ styles, options }: SideBarProps) => {
     <Styles.SideBarPanel>
       <Styles.Container styles={styles} isOpen={open} boxShadow={3}>
         {open ? (
-          <Box display={"flex"} flexDirection={"column"} m={2}>
+          <Box display={"flex"} flexDirection={"column"} m={2} height={"100%"}>
             <Box display={"flex"} justifyContent={"space-between"}>
               <Typography variant={"h6"}>{activePanel?.title}</Typography>
               <IconButton aria-label={"toggle close"} onClick={closeSideBar}>
@@ -53,7 +53,7 @@ export const SideBarPanel = ({ styles, options }: SideBarProps) => {
               </IconButton>
             </Box>
             <Divider />
-            <Box>{activePanel?.panelComponent}</Box>
+            <Box height={"100%"}>{activePanel?.panelComponent}</Box>
           </Box>
         ) : (
           <Box

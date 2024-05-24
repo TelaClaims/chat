@@ -1,12 +1,11 @@
-import { ChatSettings, Contact, ContactInput } from "@/package/types";
 import {
-  Client,
+  ActiveConversation,
+  ChatSettings,
+  Contact,
+  ContactInput,
   Conversation,
-  Message,
-  Paginator,
-  Participant,
-  User,
-} from "@twilio/conversations";
+} from "@/package/types";
+import { Client, Message, Paginator } from "@twilio/conversations";
 
 export type Views = "inactive" | "active" | "lookup" | "contact" | "on-chat";
 
@@ -21,20 +20,8 @@ export type InitialState = {
     severity?: "critical" | "regular";
     type: "error" | "warning" | "info" | "success";
   };
-  conversations: Conversation[];
-  activeConversation?: {
-    loading: boolean;
-    conversation: Conversation;
-    messages: Message[];
-    partyParticipants: Participant[];
-    partyUsers: User[];
-    messagesUnreadCount: number | null;
-    autoScroll?: {
-      message: Message;
-      scrollOptions?: ScrollIntoViewOptions;
-    };
-    messagesPaginator?: Paginator<Message>;
-  };
+  conversations?: Conversation[];
+  activeConversation?: ActiveConversation;
   selectedMessage?: {
     message: Message;
     reason: "copy" | "edit" | "delete";

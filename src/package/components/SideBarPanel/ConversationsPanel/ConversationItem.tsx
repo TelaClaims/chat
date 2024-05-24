@@ -1,6 +1,7 @@
 import { useIsTyping, useOnUpdateNewMessagesCount } from "@/package/hooks";
+import { Conversation } from "@/package/types";
 import { Badge, Box, ListItemButton, Typography } from "@mui/material";
-import { Conversation } from "@twilio/conversations";
+import { IndividualConversation } from "../../IndividualConversation/IndividualConversation";
 
 interface Props {
   conversation: Conversation;
@@ -11,8 +12,10 @@ export const ConversationItem = ({
   conversation,
   onSelectConversation,
 }: Props) => {
-  const { participant, isTyping } = useIsTyping(conversation);
-  const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation);
+  const { conversation: twilioConversation, type, partyUsers } = conversation;
+
+  const { participant, isTyping } = useIsTyping(twilioConversation);
+  const { newMessagesCount } = useOnUpdateNewMessagesCount(twilioConversation);
 
   const handleClickConversation = (
     event: React.MouseEvent<HTMLDivElement, MouseEvent>
@@ -26,18 +29,32 @@ export const ConversationItem = ({
       onClick={handleClickConversation}
       sx={{ display: "flex", justifyContent: "space-between" }}
     >
-      <Typography variant={"body2"}>
-        {/* {partyParticipants.map((participant) => participant.identity)} */}
-        {conversation.uniqueName}
-      </Typography>
-      <Typography variant={"body2"}>
-        {isTyping ? `${participant?.identity} is typing...` : ""}
-      </Typography>
-      {newMessagesCount > 0 && (
-        <Box display={"flex"} alignItems={"center"} gap={2}>
-          <Typography variant={"caption"}>New messages</Typography>
-          <Badge badgeContent={newMessagesCount} color="primary" />
-        </Box>
+      {type === "individual" && (
+        <>
+          <IndividualConversation user={partyUsers[0]} isTyping={isTyping} />
+          {newMessagesCount > 0 && (
+            <Box display={"flex"} alignItems={"center"} gap={2}>
+              <Typography variant={"caption"}>New messages</Typography>
+              <Badge badgeContent={newMessagesCount} color="primary" />
+            </Box>
+          )}
+        </>
+      )}
+      {type === "group" && (
+        <>
+          <Typography variant={"body2"}>
+            {twilioConversation.uniqueName}
+          </Typography>
+          <Typography variant={"body2"}>
+            {isTyping ? `${participant?.identity} is typing...` : ""}
+          </Typography>
+          {newMessagesCount > 0 && (
+            <Box display={"flex"} alignItems={"center"} gap={2}>
+              <Typography variant={"caption"}>New messages</Typography>
+              <Badge badgeContent={newMessagesCount} color="primary" />
+            </Box>
+          )}
+        </>
       )}
     </ListItemButton>
   );

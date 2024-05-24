@@ -7,7 +7,7 @@ interface Props {
   isOpen: boolean;
 }
 
-const DEFAULT_STYLES = {
+export const DEFAULT_STYLES = {
   width: "384px",
   widthClosed: "60px",
   widthOpen: "384px",

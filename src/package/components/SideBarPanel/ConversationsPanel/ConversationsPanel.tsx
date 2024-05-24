@@ -1,26 +1,22 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { useSideBar } from "@/package/context/SideBarPanel/context";
 import { List } from "@mui/material";
-import {
-  Conversation,
-  ConversationBindings,
-  ParticipantType,
-} from "@twilio/conversations";
+import { ConversationBindings, ParticipantType } from "@twilio/conversations";
 import { ConversationItem } from "./ConversationItem";
-import { ContactInput } from "@/package/types";
+import { ContactInput, Conversation } from "@/package/types";
+import { getContact } from "@/package/utils";
 
 export const ConversationsPanel = () => {
-  const { conversations, client } = useChat();
+  const { conversations } = useChat();
   const { selectContact } = useChatDispatch();
   const { closeSideBar } = useSideBar();
 
   const handleClickConversation = (conversation: Conversation) => {
-    const partyParticipants = Array.from(
-      conversation._participants.values()
-    ).filter((participant) => participant.identity !== client?.user?.identity);
+    const { partyParticipants, type, partyUsers } = conversation;
 
-    if (partyParticipants.length === 1) {
+    if (type === "individual") {
       let partyContact: ContactInput;
+
       const participantType = partyParticipants[0].type as ParticipantType;
       const participantBindings = partyParticipants[0]
         .bindings as ConversationBindings;
@@ -32,23 +28,21 @@ export const ConversationsPanel = () => {
           type: "phone",
         };
       } else {
-        partyContact = {
-          identity: partyParticipants[0].identity!,
-          label: partyParticipants[0].identity!,
-          type: "identifier",
-        };
+        partyContact = getContact(partyUsers[0]);
       }
       selectContact(partyContact, "on-chat");
       closeSideBar();
     }
   };
 
+  if (!conversations) return null;
+
   return (
-    <List>
+    <List sx={{ maxHeight: "calc(100% - 74px)", overflowY: "auto" }}>
       {conversations.map((conversation) => {
         return (
           <ConversationItem
-            key={conversation.sid}
+            key={conversation.conversation.sid}
             conversation={conversation}
             onSelectConversation={handleClickConversation}
           />

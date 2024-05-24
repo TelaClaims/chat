@@ -17,3 +17,4 @@ export { MessageAlert } from "./MessageAlert/MessageAlert";
 export { ChatForm } from "./ChatForm/ChatForm";
 export { ChatScrollContainer } from "./ChatScrollContainer/ChatScrollContainer";
 export { MessageAlertScrollToBottom } from "./MessageAlertScrollToBottom/MessageAlertScrollToBottom";
+export { IndividualConversation } from "./IndividualConversation/IndividualConversation";

@@ -57,7 +57,7 @@ const Chat = ({
           <Main handlers={handlers} />
           {showStatus && view !== "on-chat" && <Status />}
         </ErrorBoundary>
-        {false && <SideBarPanel />}
+        <SideBarPanel />
         <AlertSnackBar />
       </Layout>
     </ThemeProvider>
