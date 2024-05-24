@@ -17,5 +17,8 @@ export const CHAT_DISPATCH: ChatDispatch = {
   clearSelectedContact: () => {},
   startConversation: () => Promise.resolve(),
   selectMessage: () => {},
-  fetchMoreMessages: () => Promise.resolve(),
+  fetchMoreMessages: () => Promise.resolve(undefined),
+  setAutoScroll: () => {},
+  getContext: () => INITIAL_STATE,
+  clearMessageToInitialScrollTo: () => {},
 };
