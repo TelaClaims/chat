@@ -13,11 +13,9 @@ export const MessageAlertScrollToBottom = ({ show, onClick }: Props) => {
       bottom={0}
       right={16}
       sx={{
-        transform: show //lastMessageInViewPort
-          ? "translateY(0%)"
-          : "translateY(-200%)",
-        transition: "all 0.2s cubic-bezier(0.42, 0, 1, 1)",
-        transitionDelay: "0.5s",
+        transform: show ? "translateY(0%)" : "translateY(-200%)",
+        transition:
+          "transform 0.2s cubic-bezier(0.42, 0, 1, 1) 0.5s, opacity 0.2s cubic-bezier(0.42, 0, 1, 1)",
         opacity: 0.5,
         ":hover": {
           opacity: 1,
@@ -25,7 +23,7 @@ export const MessageAlertScrollToBottom = ({ show, onClick }: Props) => {
       }}
     >
       <IconButton
-        onClick={onClick} //{goToLastMessage}
+        onClick={onClick}
         color="info"
         sx={{
           bgcolor: colors.grey["200"],

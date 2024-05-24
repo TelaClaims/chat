@@ -29,7 +29,10 @@ export type InitialState = {
     partyParticipants: Participant[];
     partyUsers: User[];
     messagesUnreadCount: number | null;
-    messageToInitialScrollTo?: Message;
+    autoScroll?: {
+      message: Message;
+      scrollOptions?: ScrollIntoViewOptions;
+    };
     messagesPaginator?: Paginator<Message>;
   };
   selectedMessage?: {
@@ -65,5 +68,13 @@ export type ChatDispatch = {
     message?: Message,
     reason?: "copy" | "edit" | "delete"
   ) => void;
-  fetchMoreMessages: (direction: "prev" | "next") => Promise<void>;
+  fetchMoreMessages: (
+    anchorMessageIndex: number
+  ) => Promise<Paginator<Message> | undefined>;
+  setAutoScroll: (
+    message: Message,
+    scrollOptions?: ScrollIntoViewOptions
+  ) => void;
+  clearMessageToInitialScrollTo: () => void;
+  getContext: () => InitialState;
 };

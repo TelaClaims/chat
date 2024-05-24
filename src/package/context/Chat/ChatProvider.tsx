@@ -4,6 +4,7 @@ import { INITIAL_STATE } from "./constants";
 import { InitialState, ChatAction, Views } from "./types";
 import {
   Client,
+  Conversation,
   ConversationBindings,
   JSONValue,
   Message,
@@ -222,23 +223,23 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Message Events
     client.on("messageAdded", (message) => {
       log("log", "Message added", { message });
+      const activeConversation = chatRef.current.activeConversation;
 
-      if (
-        chatRef.current.activeConversation?.conversation.sid ===
-        message.conversation.sid
-      ) {
-        dispatch({
-          type: "setActiveConversation",
-          payload: {
-            activeConversation: {
-              ...chatRef.current.activeConversation,
-              messages: [
-                ...chatRef.current.activeConversation.messages,
-                message,
-              ],
+      if (activeConversation?.conversation.sid === message.conversation.sid) {
+        const { messagesPaginator } = activeConversation || {};
+
+        // Add message only if the paginator is in the last page
+        if (!messagesPaginator?.hasNextPage) {
+          dispatch({
+            type: "setActiveConversation",
+            payload: {
+              activeConversation: {
+                ...activeConversation,
+                messages: [...activeConversation.messages, message],
+              },
             },
-          },
-        });
+          });
+        }
       }
     });
 
@@ -569,7 +570,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     let partyParticipants: Participant[] = [];
     let partyUsers: User[] = [];
     let messagesUnreadCount: number | null = null;
-    let messageToInitialScrollTo: Message | undefined;
+    let autoScroll: {
+      message: Message;
+      scrollOptions?: ScrollIntoViewOptions;
+    };
 
     dispatch({
       type: "setActiveConversation",
@@ -581,23 +585,35 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       },
     });
 
-    const totalToFetch = 10;
     const lastMessageReadByClientIndex = conversation.lastReadMessageIndex || 0;
     const unreadMessagesCount = await conversation.getUnreadMessagesCount();
 
     if (unreadMessagesCount === 0) {
-      messagesPaginator = await conversation.getMessages(totalToFetch);
+      messagesPaginator = await getMessagePaginator(conversation);
       messages = messagesPaginator.items;
-      messageToInitialScrollTo = messages[messages.length - 1];
+      autoScroll = {
+        message: messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
     } else {
-      const anchor =
-        lastMessageReadByClientIndex + Math.floor(totalToFetch / 2);
-      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
-      messages = messagesPaginator.items;
-      messageToInitialScrollTo = messages.find(
-        (message) => message.index === lastMessageReadByClientIndex
+      messagesPaginator = await getMessagePaginator(
+        conversation,
+        lastMessageReadByClientIndex
       );
-      messages;
+      messages = messagesPaginator.items;
+      autoScroll = {
+        message:
+          messages.find(
+            (message) => message.index === lastMessageReadByClientIndex
+          ) || messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
     }
 
     participants = await conversation.getParticipants();
@@ -621,61 +637,36 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           partyParticipants,
           partyUsers,
           messagesUnreadCount,
-          messageToInitialScrollTo,
+          autoScroll,
           messagesPaginator,
         },
       },
     });
   };
 
-  const fetchMoreMessages = async (direction: "prev" | "next") => {
+  const fetchMoreMessages = async (anchorMessageIndex: number) => {
     const { activeConversation } = chatRef.current;
     if (!activeConversation) {
       return;
     }
+    const newMessagesPaginator = await getMessagePaginator(
+      activeConversation.conversation,
+      anchorMessageIndex
+    );
+    const messages = newMessagesPaginator.items;
 
-    const { messagesPaginator } = activeConversation;
-    if (!messagesPaginator) {
-      return;
-    }
-
-    let newMessagesPaginator: Paginator<Message>;
-
-    if (direction === "prev") {
-      // newMessagesPaginator = await messagesPaginator.prevPage();
-      newMessagesPaginator = await activeConversation.conversation.getMessages(
-        activeConversation.messages.length + 10,
-        // activeConversation.messages[0].index - 1
-      );
-      const messages = newMessagesPaginator.items;
-
-      dispatch({
-        type: "setActiveConversation",
-        payload: {
-          activeConversation: {
-            ...activeConversation,
-            messagesPaginator: newMessagesPaginator,
-            messages: [...messages],
-          },
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...activeConversation,
+          messagesPaginator: newMessagesPaginator,
+          messages: [...messages],
         },
-      });
-    }
+      },
+    });
 
-    if (direction === "next") {
-      newMessagesPaginator = await messagesPaginator.nextPage();
-      const messages = newMessagesPaginator.items;
-
-      dispatch({
-        type: "setActiveConversation",
-        payload: {
-          activeConversation: {
-            ...activeConversation,
-            messagesPaginator: newMessagesPaginator,
-            messages: [...messages],
-          },
-        },
-      });
-    }
+    return newMessagesPaginator;
   };
 
   const selectMessage = (
@@ -696,8 +687,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // messageInputRef.current.value = message.body || "";
-      // messageInputRef.current?.focus();
       dispatch({
         type: "selectMessage",
         payload: {
@@ -724,6 +713,62 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const getMessagePaginator = async (
+    conversation: Conversation,
+    indexToFetch?: number,
+    totalToFetch: number = 100
+  ) => {
+    let messagesPaginator: Paginator<Message>;
+    const lastMessageIndex = conversation.lastMessage?.index || 0;
+    indexToFetch = indexToFetch || lastMessageIndex;
+
+    const anchor = indexToFetch + Math.floor(totalToFetch / 2);
+
+    if (anchor > lastMessageIndex) {
+      messagesPaginator = await conversation.getMessages(totalToFetch);
+    } else {
+      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
+    }
+
+    return messagesPaginator;
+  };
+
+  const setAutoScroll = (
+    message: Message,
+    scrollOptions?: ScrollIntoViewOptions
+  ) => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          autoScroll: {
+            message,
+            scrollOptions,
+          },
+        },
+      },
+    });
+  };
+
+  const clearMessageToInitialScrollTo = () => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          autoScroll: undefined,
+        },
+      },
+    });
+  };
+
+  const getContext = () => {
+    return {
+      ...chatRef.current,
+    };
+  };
+
   return (
     <SideBarProvider>
       <ChatContext.Provider value={chat}>
@@ -739,6 +784,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             startConversation,
             selectMessage,
             fetchMoreMessages,
+            setAutoScroll,
+            clearMessageToInitialScrollTo,
+            getContext,
           }}
         >
           {children}
