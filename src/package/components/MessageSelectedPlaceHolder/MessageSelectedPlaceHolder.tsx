@@ -20,17 +20,30 @@ export const MessageSelectedPlaceHolder = ({ message, onClose }: Props) => {
         borderLeft: `5px solid ${randomColor}`,
         bgcolor: "grey.200",
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
         borderRadius: 1,
         pl: 1,
+        pb: 1,
       }}
     >
-      <Box>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: "hidden",
+          textAlign: "justify",
+        }}
+      >
         <Typography variant={"caption"} color={"text.secondary"}>
           {message.author === client?.user.identity ? "You" : message.author}
         </Typography>
-        <Typography variant={"body1"}>{message.body}</Typography>
+        <Typography
+          variant={"body1"}
+          sx={{
+            wordWrap: "break-word",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {message.body}
+        </Typography>
       </Box>
       <Box>
         <IconButton onClick={onClose}>
