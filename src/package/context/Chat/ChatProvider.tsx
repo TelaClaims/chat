@@ -8,6 +8,8 @@ import {
   JSONValue,
   Message,
   Paginator,
+  UserUpdateReason,
+  User,
 } from "@twilio/conversations";
 import {
   ActiveConversation,
@@ -357,196 +359,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   //#endregion
 
   //#region utils functions
-  const findConversationByIdentity = (identity: string) => {
-    if (!chat.conversations) {
-      return;
-    }
-
-    const conversation = chat.conversations.find(
-      ({ type, partyUsers }) =>
-        type === "individual" &&
-        partyUsers.some((user) => user.identity === identity)
-    );
-
-    return conversation?.conversation;
-  };
-
-  const selectConversation = async (conversationSid: string) => {
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          ...chatRef.current.activeConversation!,
-          loading: true,
-        },
-      },
-    });
-
-    const {
-      conversation,
-      messages,
-      participants,
-      partyParticipants,
-      partyUsers,
-      autoScroll,
-      messagesPaginator,
-      type,
-    } = await fetchActiveConversation(conversationSid);
-
-    dispatch({
-      type: "setActiveConversation",
-      payload: {
-        activeConversation: {
-          loading: false,
-          conversation,
-          messages,
-          participants,
-          partyParticipants,
-          partyUsers,
-          autoScroll,
-          messagesPaginator,
-          type,
-        },
-      },
-    });
-  };
-
-  const fetchConversations = async () => {
-    const client = getClient();
-    let conversations: Conversation[] = [];
-
-    const conversationsPaginator = await client.getSubscribedConversations();
-    if (conversationsPaginator.items.length) {
-      conversations = await Promise.all(
-        conversationsPaginator.items.map(async (conversation) => {
-          return await fetchConversation(conversation);
-        })
-      );
-
-      conversations.sort((a, b) => {
-        return (
-          (b.conversation.lastMessage?.dateCreated?.getTime() || 0) -
-          (a.conversation.lastMessage?.dateCreated?.getTime() || 0)
-        );
-      });
-
-      return conversations;
-    }
-  };
-
-  const fetchConversation = async (
-    conversation: TwilioConversation
-  ): Promise<Conversation> => {
-    const participants = await conversation.getParticipants();
-    const partyParticipants = participants.filter(
-      (participant) => participant.identity !== chatRef.current.contact.identity
-    );
-    const partyUsers = await Promise.all(
-      partyParticipants.map(async (participant) => {
-        return await participant.getUser();
-      })
-    );
-
-    return {
-      conversation,
-      participants,
-      partyParticipants,
-      partyUsers,
-      type: getConversationType(conversation),
-    };
-  };
-
-  const fetchActiveConversation = async (
-    conversationSid: string
-  ): Promise<ActiveConversation> => {
-    const client = getClient();
-    const conversation = await client.getConversationBySid(conversationSid);
-
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    const { participants, partyParticipants, partyUsers, type } =
-      await fetchConversation(conversation);
-
-    let messagesPaginator: Paginator<Message>;
-    let messages: Message[] = [];
-    let autoScroll: {
-      message: Message;
-      scrollOptions?: ScrollIntoViewOptions;
-    };
-
-    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
-
-    if (unreadMessagesCount === 0) {
-      messagesPaginator = await getMessagePaginator(conversation);
-      messages = messagesPaginator.items;
-      autoScroll = {
-        message: messages[messages.length - 1],
-        scrollOptions: {
-          behavior: "auto",
-          block: "end",
-        },
-      };
-    } else {
-      const lastMessageReadByClientIndex =
-        conversation.lastReadMessageIndex || 0;
-      messagesPaginator = await getMessagePaginator(
-        conversation,
-        lastMessageReadByClientIndex
-      );
-      messages = messagesPaginator.items;
-      autoScroll = {
-        message:
-          messages.find(
-            (message) => message.index === lastMessageReadByClientIndex
-          ) || messages[messages.length - 1],
-        scrollOptions: {
-          behavior: "auto",
-          block: "end",
-        },
-      };
-    }
-
-    return {
-      conversation,
-      messages,
-      participants,
-      partyParticipants,
-      partyUsers,
-      autoScroll,
-      messagesPaginator,
-      type,
-    };
-  };
-
-  const getMessagePaginator = async (
-    conversation: TwilioConversation,
-    indexToFetch?: number,
-    totalToFetch: number = 100
-  ) => {
-    let messagesPaginator: Paginator<Message>;
-    const lastMessageIndex = conversation.lastMessage?.index || 0;
-    indexToFetch = indexToFetch || lastMessageIndex;
-
-    const anchor = indexToFetch + Math.floor(totalToFetch / 2);
-
-    if (anchor > lastMessageIndex) {
-      messagesPaginator = await conversation.getMessages(totalToFetch);
-    } else {
-      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
-    }
-
-    return messagesPaginator;
-  };
-
   const addClientListeners = (
     client: Client,
     events: ChatSettings["events"]
   ) => {
     //#region Initialization
     client.on("initialized", async () => {
-      console.log("Client initialized successfully");
+      log("log", "Client initialized successfully");
 
       const userAttributes: UserAttributes = {
         contact: chatRef.current.contact.toJSON(),
@@ -649,11 +468,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#endregion
 
     //#region Message Events
-    client.on("messageAdded", (message) => {
+    client.on("messageAdded", async (message) => {
       log("log", "Message added", { message });
-      const activeConversation = chatRef.current.activeConversation;
 
-      if (activeConversation?.conversation.sid === message.conversation.sid) {
+      const { activeConversation, conversations = [] } = chatRef.current;
+      const { conversation: conversationMessage } = message;
+
+      // update the active conversation with the new message
+      if (activeConversation?.conversation.sid === conversationMessage.sid) {
         const { messagesPaginator } = activeConversation || {};
 
         // Add message only if the paginator is in the last page
@@ -669,22 +491,33 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
       }
+
+      // put message conversation at the top of the list of conversations
+      const updatedConversations = await putUpdatedConversationAtTop(
+        conversationMessage,
+        conversations
+      );
+
+      dispatch({
+        type: "setConversations",
+        payload: {
+          conversations: updatedConversations,
+        },
+      });
     });
 
     client.on("messageRemoved", (message) => {
       log("log", "Message removed", { message });
+      const { activeConversation } = chatRef.current;
 
-      if (
-        chatRef.current.activeConversation?.conversation.sid ===
-        message.conversation.sid
-      ) {
+      if (activeConversation?.conversation.sid === message.conversation.sid) {
         dispatch({
           type: "setActiveConversation",
           payload: {
             activeConversation: {
-              ...chatRef.current.activeConversation,
+              ...activeConversation,
               messages: [
-                ...chatRef.current.activeConversation.messages.filter(
+                ...activeConversation.messages.filter(
                   (m) => m.sid !== message.sid
                 ),
               ],
@@ -777,16 +610,44 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "User unsubscribed", { user });
     });
 
-    client.on("userUpdated", ({ user, updateReasons }) => {
-      log("log", "User updated", { user });
-      if (updateReasons.includes("reachabilityOnline")) {
-        log("log", "User reachabilityOnline", { user });
-      }
+    client.on(
+      "userUpdated",
+      async ({
+        user,
+        updateReasons,
+      }: {
+        user: User;
+        updateReasons: UserUpdateReason[];
+      }) => {
+        log("log", "User updated", { user });
+        if (updateReasons.includes("reachabilityOnline")) {
+          log("log", "User reachabilityOnline", { user });
 
-      if (updateReasons.includes("reachabilityNotifiable")) {
-        log("log", "User is notifiable", { user });
+          const { conversations = [] } = chatRef.current;
+
+          const updatedConversations = conversations.map((conversation) => {
+            const updatedPartyUsers = conversation.partyUsers.map((partyUser) =>
+              partyUser.identity === user.identity ? user : partyUser
+            );
+
+            return {
+              ...conversation,
+              partyUsers: updatedPartyUsers,
+            };
+          });
+          dispatch({
+            type: "setConversations",
+            payload: {
+              conversations: updatedConversations as Conversation[],
+            },
+          });
+        }
+
+        if (updateReasons.includes("reachabilityNotifiable")) {
+          log("log", "User is notifiable", { user });
+        }
       }
-    });
+    );
     //#endregion
 
     client.on("pushNotification", (notification) => {
@@ -802,6 +663,245 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         log("log", "Client failed", { state });
       }
     });
+  };
+
+  const findConversationByIdentity = (identity: string) => {
+    if (!chat.conversations) {
+      return;
+    }
+
+    const conversation = chat.conversations.find(
+      ({ type, partyUsers }) =>
+        type === "individual" &&
+        partyUsers.some((user) => user.identity === identity)
+    );
+
+    return conversation?.conversation;
+  };
+
+  const selectConversation = async (conversationSid: string) => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          ...chatRef.current.activeConversation!,
+          loading: true,
+        },
+      },
+    });
+
+    const {
+      conversation,
+      messages,
+      participants,
+      partyParticipants,
+      partyUsers,
+      autoScroll,
+      messagesPaginator,
+      type,
+    } = await fetchActiveConversation(conversationSid);
+
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: {
+          loading: false,
+          conversation,
+          messages,
+          participants,
+          partyParticipants,
+          partyUsers,
+          autoScroll,
+          messagesPaginator,
+          type,
+        },
+      },
+    });
+  };
+
+  const fetchConversations = async () => {
+    const client = getClient();
+    let conversations: Conversation[] = [];
+
+    try {
+      let conversationsPaginator = await client.getSubscribedConversations();
+
+      while (conversationsPaginator.items.length) {
+        const pageConversations = await Promise.all(
+          conversationsPaginator.items.map(async (conversation) => {
+            return await fetchConversation(conversation);
+          })
+        );
+        conversations = conversations.concat(pageConversations);
+
+        if (conversationsPaginator.hasNextPage) {
+          conversationsPaginator = await conversationsPaginator.nextPage();
+        } else {
+          break; // No more pages to fetch
+        }
+      }
+
+      conversations = sortConversations(conversations);
+
+      return conversations;
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: "Failed to fetch conversations",
+        context: JSON.stringify(error),
+      });
+      return [];
+    }
+  };
+
+  const fetchConversation = async (
+    conversation: TwilioConversation
+  ): Promise<Conversation> => {
+    const participants = await conversation.getParticipants();
+    const partyParticipants = participants.filter(
+      (participant) => participant.identity !== chatRef.current.contact.identity
+    );
+    const partyUsers = await Promise.all(
+      partyParticipants.map(async (participant) => {
+        return await participant.getUser();
+      })
+    );
+
+    return {
+      conversation,
+      participants,
+      partyParticipants,
+      partyUsers,
+      type: getConversationType(conversation),
+    };
+  };
+
+  const sortConversations = (conversations: Conversation[]) => {
+    return conversations.sort((a, b) => {
+      return (
+        (b.conversation.lastMessage?.dateCreated?.getTime() || 0) -
+        (a.conversation.lastMessage?.dateCreated?.getTime() || 0)
+      );
+    });
+  };
+
+  const putUpdatedConversationAtTop = async (
+    updatedConversation: TwilioConversation,
+    conversations: Conversation[]
+  ): Promise<Conversation[]> => {
+    const updatedConversations = [...conversations];
+
+    const conversationUpdatedIndex = updatedConversations.findIndex(
+      (c) => c.conversation.sid === updatedConversation.sid
+    );
+
+    if (conversationUpdatedIndex !== -1) {
+      const [conversationUpdated] = updatedConversations.splice(
+        conversationUpdatedIndex,
+        1
+      );
+      updatedConversations.unshift(conversationUpdated);
+    } else {
+      // Fetch and add new conversation to the top
+      try {
+        const newConversation = await fetchConversation(updatedConversation);
+        updatedConversations.unshift(newConversation);
+      } catch (error) {
+        setAlert({
+          type: "error",
+          message: "Failed to fetch updated conversation",
+          context: JSON.stringify(error),
+        });
+      }
+    }
+
+    return updatedConversations;
+  };
+
+  const fetchActiveConversation = async (
+    conversationSid: string
+  ): Promise<ActiveConversation> => {
+    const client = getClient();
+    const conversation = await client.getConversationBySid(conversationSid);
+
+    client.getSubscribedConversations();
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const { participants, partyParticipants, partyUsers, type } =
+      await fetchConversation(conversation);
+
+    let messagesPaginator: Paginator<Message>;
+    let messages: Message[] = [];
+    let autoScroll: {
+      message: Message;
+      scrollOptions?: ScrollIntoViewOptions;
+    };
+
+    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
+
+    if (unreadMessagesCount === 0) {
+      messagesPaginator = await getMessagePaginator(conversation);
+      messages = messagesPaginator.items;
+      autoScroll = {
+        message: messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
+    } else {
+      const lastMessageReadByClientIndex =
+        conversation.lastReadMessageIndex || 0;
+      messagesPaginator = await getMessagePaginator(
+        conversation,
+        lastMessageReadByClientIndex
+      );
+      messages = messagesPaginator.items;
+      autoScroll = {
+        message:
+          messages.find(
+            (message) => message.index === lastMessageReadByClientIndex
+          ) || messages[messages.length - 1],
+        scrollOptions: {
+          behavior: "auto",
+          block: "end",
+        },
+      };
+    }
+
+    return {
+      conversation,
+      messages,
+      participants,
+      partyParticipants,
+      partyUsers,
+      autoScroll,
+      messagesPaginator,
+      type,
+    };
+  };
+
+  const getMessagePaginator = async (
+    conversation: TwilioConversation,
+    indexToFetch?: number,
+    totalToFetch: number = 100
+  ) => {
+    let messagesPaginator: Paginator<Message>;
+    const lastMessageIndex = conversation.lastMessage?.index || 0;
+    indexToFetch = indexToFetch || lastMessageIndex;
+
+    const anchor = indexToFetch + Math.floor(totalToFetch / 2);
+
+    if (anchor > lastMessageIndex) {
+      messagesPaginator = await conversation.getMessages(totalToFetch);
+    } else {
+      messagesPaginator = await conversation.getMessages(totalToFetch, anchor);
+    }
+
+    return messagesPaginator;
   };
 
   const getClient = (): Client => {

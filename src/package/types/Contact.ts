@@ -78,6 +78,10 @@ class Contact {
   public toStringify(): string {
     return JSON.stringify(this.toJSON());
   }
+
+  public setStatus(status: ContactStatus): void {
+    this.status = new Status(status);
+  }
 }
 
 class Status {

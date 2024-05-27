@@ -62,9 +62,7 @@ const ChatView = () => {
     }
   };
 
-  const { ref: messagesEndRef, inView: messagesEndInViewPort } = useInView({
-    initialInView: true,
-  });
+  const { ref: messagesEndRef, inView: messagesEndInViewPort } = useInView();
   const { ref: topMessageRef } = useInView({
     onChange: handleTopMessageInViewPort,
   });

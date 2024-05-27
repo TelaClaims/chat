@@ -12,6 +12,7 @@ export const IndividualConversation = ({
   isTyping: boolean;
 }) => {
   const contact = getContact(user);
+  contact.setStatus(user.isOnline ? "available" : "offline");
 
   return (
     <Box display={"flex"} gap={1} alignItems={"center"}>
