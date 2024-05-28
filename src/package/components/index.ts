@@ -18,3 +18,4 @@ export { ChatForm } from "./ChatForm/ChatForm";
 export { ChatScrollContainer } from "./ChatScrollContainer/ChatScrollContainer";
 export { MessageAlertScrollToBottom } from "./MessageAlertScrollToBottom/MessageAlertScrollToBottom";
 export { IndividualConversation } from "./IndividualConversation/IndividualConversation";
+export { SendMediaButton } from "./SendMediaButton/SendMediaButton";

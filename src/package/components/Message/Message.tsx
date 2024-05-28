@@ -1,13 +1,14 @@
 import { Message, User } from "@twilio/conversations";
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box, ListItem, Typography, colors } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useMessageReadIntersection } from "./useMessageReadIntersection";
 import CheckIcon from "@mui/icons-material/Check";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import { MessageMenu } from "../MessageMenu/MessageMenu";
 import { useOnMessageUpdated } from "@/package/hooks";
 import { getContact } from "@/package/utils";
+import { MediaMessage } from "./MediaMessage/MediaMessage";
 interface Props {
   message: Message;
   isRead: boolean;
@@ -19,7 +20,6 @@ export const MessageUI = ({ message, isRead }: Props) => {
   const [showMenu, setShowMenu] = useState(false);
   const messageRef = useRef(null);
   useMessageReadIntersection({ message, ref: messageRef });
-  const [mediaUrl, setMediaUrl] = useState("");
 
   const { updatedMessageBy } = useOnMessageUpdated({ message });
 
@@ -47,20 +47,6 @@ export const MessageUI = ({ message, isRead }: Props) => {
     if (direction === "outgoing") setShowMenu(false);
   }, [direction]);
 
-  useEffect(() => {
-    const fetchTemporaryMediaUrl = async () => {
-      const media = message.attachedMedia![0];
-      const mediaUrl = await media.getContentTemporaryUrl();
-      if (mediaUrl) {
-        setMediaUrl(mediaUrl);
-      }
-    };
-
-    if (message.attachedMedia?.[0]) {
-      fetchTemporaryMediaUrl();
-    }
-  }, [message.attachedMedia]);
-
   return (
     <ListItem
       ref={messageRef}
@@ -79,6 +65,7 @@ export const MessageUI = ({ message, isRead }: Props) => {
       {direction === "outgoing" && showMenu && (
         <MessageMenu
           onClickOption={(reason) => selectMessage(message, reason)}
+          hiddenOptions={message.type === "media" ? ["copy", "edit"] : []}
         />
       )}
       <Box
@@ -102,16 +89,8 @@ export const MessageUI = ({ message, isRead }: Props) => {
             overflowWrap: "break-word",
           }}
         >
-          {mediaUrl && (
-            <img
-              src={mediaUrl}
-              // style={{
-              //   maxWidth: "100%",
-              //   maxHeight: "200px",
-              //   borderRadius: "10px",
-              // }}
-              alt={"media"}
-            />
+          {message.attachedMedia?.length && (
+            <MediaMessage media={message.attachedMedia[0]} />
           )}
           {message.body}
         </Typography>

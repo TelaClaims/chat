@@ -1,28 +1,10 @@
-import {
-  Box,
-  IconButton,
-  InputAdornment,
-  TextField,
-  styled,
-} from "@mui/material";
+import { Box, IconButton, InputAdornment, TextField } from "@mui/material";
 import { colors } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useEffect, useRef } from "react";
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { MessageSelectedPlaceHolder } from "../MessageSelectedPlaceHolder/MessageSelectedPlaceHolder";
-import AddIcon from "@mui/icons-material/Add";
-
-const VisuallyHiddenInput = styled("input")({
-  clip: "rect(0 0 0 0)",
-  clipPath: "inset(50%)",
-  height: 1,
-  overflow: "hidden",
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  whiteSpace: "nowrap",
-  width: 1,
-});
+import { SendMediaButton } from "../SendMediaButton/SendMediaButton";
 
 interface Props {
   goToLastMessage: () => void;
@@ -33,7 +15,6 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
   const { selectMessage, setAlert } = useChatDispatch();
   const { conversation } = activeConversation || {};
   const messageInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTyping = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
@@ -67,38 +48,28 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
     }
   };
 
-  const handleSendMedia = () => {
-    fileInputRef.current?.click();
-  };
+  const handleSendMediaMessage = async (file: File) => {
+    try {
+      const fileBlob = await file.arrayBuffer();
 
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      try {
-        const fileBlob = await file.arrayBuffer();
+      const sendMediaOptions = {
+        contentType: file.type,
+        filename: file.name,
+        media: new Blob([fileBlob]),
+      };
 
-        const sendMediaOptions = {
-          contentType: file.type,
-          filename: file.name,
-          media: new Blob([fileBlob]),
-        };
+      await activeConversation?.conversation
+        .prepareMessage()
+        .addMedia(sendMediaOptions)
+        .buildAndSend();
 
-        await activeConversation?.conversation
-          .prepareMessage()
-          .addMedia(sendMediaOptions)
-          .buildAndSend();
-
-        await activeConversation?.conversation.setAllMessagesRead();
-        goToLastMessage();
-      } catch (error) {
-        setAlert({
-          type: "error",
-          message: "Failed to send media",
-        });
-      }
+      await activeConversation?.conversation.setAllMessagesRead();
+      goToLastMessage();
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: "Failed to send media",
+      });
     }
   };
 
@@ -123,23 +94,7 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
         />
       )}
       <Box display={"flex"}>
-        <Box
-          border={"1px solid #ccc"}
-          sx={{
-            bgcolor: colors.grey["100"],
-            borderRight: "none",
-            alignContent: "center",
-          }}
-        >
-          <IconButton onClick={handleSendMedia}>
-            <AddIcon />
-          </IconButton>
-          <VisuallyHiddenInput
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-          />
-        </Box>
+        <SendMediaButton onSelectedFile={handleSendMediaMessage} />
         <TextField
           sx={{
             zIndex: 2,

@@ -29,8 +29,7 @@ const ChatView = () => {
 
   // get the last message read by all party participants (use it to know the checkmark status of the message)
   const { lastMessageReadByParticipants } = useLastMessageRead(
-    conversation!,
-    messages!
+    activeConversation!
   );
 
   // get the new messages count (use it to show the alert message and display the number of new messages)

@@ -1,16 +1,13 @@
 import {
-  Conversation,
   Message,
   Participant,
   ParticipantUpdateReason,
 } from "@twilio/conversations";
 import { useEffect, useState } from "react";
 import { useChat } from "../context/Chat/context";
+import { ActiveConversation } from "../types";
 
-export const useLastMessageRead = (
-  conversation: Conversation,
-  messages: Message[]
-) => {
+export const useLastMessageRead = (conversation: ActiveConversation) => {
   const { client } = useChat();
   const [lastMessageReadByParticipants, setLastMessageReadByParticipants] =
     useState<{ index: number; message: Message | null }>({
@@ -18,24 +15,12 @@ export const useLastMessageRead = (
       message: null,
     });
 
-  // ! Not used anymore
-  // const [lastMessageReadByClient, setLastMessageReadByClient] = useState<{
-  //   index: number;
-  //   message: Message | null;
-  // }>({
-  //   index: 0,
-  //   message: null,
-  // });
-
   useEffect(() => {
     const checkLastReadMessageIndexByParticipants = () => {
-      const partyParticipants = Array.from(
-        conversation._participants.values()
-      ).filter((participant) => participant.identity !== client?.user.identity);
-
       let messageIndex = -1;
+      let readMessage: Message | undefined = undefined;
 
-      partyParticipants.forEach((participant) => {
+      conversation.partyParticipants.forEach((participant) => {
         if (participant.lastReadMessageIndex !== null) {
           if (messageIndex === -1) {
             messageIndex = participant.lastReadMessageIndex;
@@ -47,14 +32,21 @@ export const useLastMessageRead = (
         }
       });
 
-      const message = messages.find(
-        (message) => message.index === messageIndex
-      );
+      if (
+        messageIndex >
+        conversation.messages[conversation.messages.length - 1].index
+      ) {
+        readMessage = conversation.messages[conversation.messages.length - 1];
+      } else {
+        readMessage = conversation.messages.find(
+          (message) => message.index === messageIndex
+        );
+      }
 
-      if (message) {
+      if (readMessage) {
         setLastMessageReadByParticipants({
           index: messageIndex,
-          message: messages[messageIndex],
+          message: conversation.messages[messageIndex],
         });
       }
     };
@@ -74,28 +66,13 @@ export const useLastMessageRead = (
       }
     };
 
-    conversation.on("participantUpdated", onParticipantUpdated);
+    conversation.conversation.on("participantUpdated", onParticipantUpdated);
     checkLastReadMessageIndexByParticipants();
 
     return () => {
-      conversation.off("participantUpdated", onParticipantUpdated);
+      conversation.conversation.off("participantUpdated", onParticipantUpdated);
     };
-  }, [client?.user.identity, conversation, messages]);
-
-  // useEffect(() => {
-  //   if (messages && conversation.lastReadMessageIndex) {
-  //     const message = messages.find(
-  //       (message) => message.index === conversation.lastReadMessageIndex
-  //     );
-
-  //     if (message) {
-  //       setLastMessageReadByClient({
-  //         index: conversation.lastReadMessageIndex,
-  //         message,
-  //       });
-  //     }
-  //   }
-  // }, [conversation.lastReadMessageIndex, messages]);
+  }, [client?.user.identity, conversation]);
 
   return {
     lastMessageReadByParticipants,

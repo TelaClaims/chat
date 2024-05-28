@@ -18,6 +18,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 interface Props {
   onClickOption: (reason: "copy" | "edit" | "delete") => void;
+  hiddenOptions?: ("copy" | "edit" | "delete")[];
 }
 
 interface MSGMenuProps {
@@ -25,9 +26,10 @@ interface MSGMenuProps {
   open: boolean;
   handleClose: () => void;
   handleClickOptionMenu: (reason: "copy" | "edit" | "delete") => void;
+  hiddenOptions?: ("copy" | "edit" | "delete")[];
 }
 
-export const MessageMenu = ({ onClickOption }: Props) => {
+export const MessageMenu = ({ onClickOption, hiddenOptions }: Props) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -51,6 +53,8 @@ export const MessageMenu = ({ onClickOption }: Props) => {
     onClickOption(reason);
   };
 
+  const hideEdit = hiddenOptions?.includes("edit");
+
   return (
     <ButtonGroup
       size="small"
@@ -62,15 +66,17 @@ export const MessageMenu = ({ onClickOption }: Props) => {
         opacity: 0.8,
       }}
     >
-      <Tooltip title="Edit" placement="top">
-        <IconButton
-          size="small"
-          aria-label="edit"
-          onClick={(e) => handleClickOption(e, "edit")}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {!hideEdit && (
+        <Tooltip title="Edit" placement="top">
+          <IconButton
+            size="small"
+            aria-label="edit"
+            onClick={(e) => handleClickOption(e, "edit")}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title="More" placement="top">
         <IconButton
           aria-controls={open ? "basic-menu" : undefined}
@@ -88,6 +94,7 @@ export const MessageMenu = ({ onClickOption }: Props) => {
         open={open}
         handleClose={handleClose}
         handleClickOptionMenu={handleClickOptionMenu}
+        hiddenOptions={hiddenOptions}
       />
     </ButtonGroup>
   );
@@ -98,6 +105,7 @@ export const MSGMenu = ({
   open,
   handleClose,
   handleClickOptionMenu,
+  hiddenOptions,
 }: MSGMenuProps) => {
   const handleClickOption = (
     event: React.MouseEvent<HTMLLIElement, MouseEvent>,
@@ -107,6 +115,10 @@ export const MSGMenu = ({
     handleClickOptionMenu(reason);
     handleClose();
   };
+
+  const hideEdit = hiddenOptions?.includes("edit");
+  const hideCopy = hiddenOptions?.includes("copy");
+  const hideDelete = hiddenOptions?.includes("delete");
 
   return (
     <Menu
@@ -136,78 +148,86 @@ export const MSGMenu = ({
             padding: 0,
           }}
         >
-          <MenuItem
-            onClick={(e) => handleClickOption(e, "copy")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: colors.grey["800"],
-              transition: "all 0.1s ease-in-out",
-              ":hover": {
-                color: colors.common.white,
-                bgcolor: colors.grey["600"],
-              },
-            }}
-          >
-            <ListItemText>Copy Text</ListItemText>
-            <ListItemIcon
+          {!hideCopy && (
+            <MenuItem
+              onClick={(e) => handleClickOption(e, "copy")}
               sx={{
-                justifyContent: "flex-end",
-                color: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                color: colors.grey["800"],
+                transition: "all 0.1s ease-in-out",
+                ":hover": {
+                  color: colors.common.white,
+                  bgcolor: colors.grey["600"],
+                },
               }}
             >
-              <ContentCopyIcon fontSize="small" color="inherit" />
-            </ListItemIcon>
-          </MenuItem>
-          <MenuItem
-            onClick={(e) => handleClickOption(e, "edit")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: colors.grey["800"],
-              transition: "all 0.1s ease-in-out",
-              ":hover": {
-                color: colors.common.white,
-                bgcolor: colors.grey["600"],
-              },
-            }}
-          >
-            <ListItemText>Edit Message</ListItemText>
-            <ListItemIcon
+              <ListItemText>Copy Text</ListItemText>
+              <ListItemIcon
+                sx={{
+                  justifyContent: "flex-end",
+                  color: "inherit",
+                }}
+              >
+                <ContentCopyIcon fontSize="small" color="inherit" />
+              </ListItemIcon>
+            </MenuItem>
+          )}
+
+          {!hideEdit && (
+            <MenuItem
+              onClick={(e) => handleClickOption(e, "edit")}
               sx={{
-                justifyContent: "flex-end",
-                color: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                color: colors.grey["800"],
+                transition: "all 0.1s ease-in-out",
+                ":hover": {
+                  color: colors.common.white,
+                  bgcolor: colors.grey["600"],
+                },
               }}
             >
-              <EditIcon fontSize="small" color="inherit" />
-            </ListItemIcon>
-          </MenuItem>
-          <MenuItem
-            onClick={(e) => handleClickOption(e, "delete")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: colors.red["600"],
-              transition: "all 0.1s ease-in-out",
-              ":hover": {
-                color: colors.common.white,
-                bgcolor: colors.red["600"],
-              },
-            }}
-          >
-            <ListItemText>Delete Message</ListItemText>
-            <ListItemIcon
+              <ListItemText>Edit Message</ListItemText>
+              <ListItemIcon
+                sx={{
+                  justifyContent: "flex-end",
+                  color: "inherit",
+                }}
+              >
+                <EditIcon fontSize="small" color="inherit" />
+              </ListItemIcon>
+            </MenuItem>
+          )}
+
+          {!hideDelete && (
+            <MenuItem
+              onClick={(e) => handleClickOption(e, "delete")}
               sx={{
-                justifyContent: "flex-end",
-                color: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                color: colors.red["600"],
+                transition: "all 0.1s ease-in-out",
+                ":hover": {
+                  color: colors.common.white,
+                  bgcolor: colors.red["600"],
+                },
               }}
             >
-              <DeleteIcon fontSize="small" color="inherit" />
-            </ListItemIcon>
-          </MenuItem>
+              <ListItemText>Delete Message</ListItemText>
+              <ListItemIcon
+                sx={{
+                  justifyContent: "flex-end",
+                  color: "inherit",
+                }}
+              >
+                <DeleteIcon fontSize="small" color="inherit" />
+              </ListItemIcon>
+            </MenuItem>
+          )}
         </MenuList>
       </Paper>
     </Menu>
