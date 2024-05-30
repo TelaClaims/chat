@@ -10,7 +10,7 @@ interface Props {
 export const Main = ({ handlers }: Props) => {
   const { view } = useChat();
 
-  const { onLookupContact } = handlers || {};
+  const { onLookupContact, onClickTag } = handlers || {};
 
   return (
     <>
@@ -18,7 +18,7 @@ export const Main = ({ handlers }: Props) => {
         {view === "active" && <ActiveView />}
         {view === "lookup" && <LookupView onLookupContact={onLookupContact} />}
         {view === "contact" && <ContactView />}
-        {view === "on-chat" && <ChatView />}
+        {view === "on-chat" && <ChatView onClickTag={onClickTag} />}
       </Layout.View>
     </>
   );

@@ -16,6 +16,7 @@ import {
   ChatSettings,
   Contact,
   ContactInput,
+  ContextMenuItem,
   Conversation,
   ConversationAttributes,
   UserAttributes,
@@ -78,6 +79,20 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
           .selectedMessage as InitialState["selectedMessage"],
       };
     }
+    case "setMessagesExtendedContextMenu": {
+      return {
+        ...state,
+        messagesExtendedContextMenu: action.payload
+          .messagesExtendedContextMenu as InitialState["messagesExtendedContextMenu"],
+      };
+    }
+    case "setGoingToMessage": {
+      return {
+        ...state,
+        goingToMessage: action.payload
+          .goingToMessage as InitialState["goingToMessage"],
+      };
+    }
     default: {
       throw Error("Unknown action: " + action.type);
     }
@@ -95,7 +110,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const initializeChat = async (
     chatSettings: ChatSettings = defaultChatSettings
   ) => {
-    const { contact, events } = chatSettings;
+    const { contact, events, messagesExtendedContextMenu } = chatSettings;
 
     setAlert({
       type: "info",
@@ -108,6 +123,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     setContact(contact);
+    if (messagesExtendedContextMenu) {
+      setMessagesExtendedContextMenu(messagesExtendedContextMenu);
+    }
 
     const client = new Client(token);
 
@@ -133,6 +151,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     dispatch({
       type: "setContact",
       payload: { contact: Contact.buildContact(contact) },
+    });
+  };
+
+  const setMessagesExtendedContextMenu = (
+    messagesExtendedContextMenu: ContextMenuItem[]
+  ) => {
+    dispatch({
+      type: "setMessagesExtendedContextMenu",
+      payload: { messagesExtendedContextMenu },
     });
   };
 
@@ -179,6 +206,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const clearSelectedContact = () => {
+    dispatch({
+      type: "setActiveConversation",
+      payload: {
+        activeConversation: undefined,
+      },
+    });
+
     dispatch({
       type: "selectContact",
       payload: { contactSelected: undefined },
@@ -891,7 +925,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   ) => {
     let messagesPaginator: Paginator<Message>;
     const lastMessageIndex = conversation.lastMessage?.index || 0;
-    indexToFetch = indexToFetch || lastMessageIndex;
+    indexToFetch = indexToFetch ?? lastMessageIndex;
 
     const anchor = indexToFetch + Math.floor(totalToFetch / 2);
 
@@ -925,6 +959,61 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       view: chatRef.current.view,
     };
   };
+
+  const goToMessage = async (index: number) => {
+    try {
+      let message: Message | undefined;
+
+      const { activeConversation } = chatRef.current;
+
+      if (!activeConversation) {
+        setAlert({
+          message: "No active conversation",
+          type: "warning",
+        });
+      }
+
+      // lookup for the message in other paginator
+      const messagePaginator = await fetchMoreMessages(index);
+      if (messagePaginator) {
+        message = messagePaginator.items.find((m) => m.index === index);
+
+        if (message) {
+          dispatch({
+            type: "setGoingToMessage",
+            payload: {
+              goingToMessage: {
+                index,
+                isGoing: true,
+              },
+            },
+          });
+          setTimeout(() => {
+            setAutoScroll(message!, {
+              behavior: "auto",
+              block: "center",
+            });
+            dispatch({
+              type: "setGoingToMessage",
+              payload: {
+                goingToMessage: {
+                  index,
+                  isGoing: false,
+                },
+              },
+            });
+          }, 1000);
+        } else {
+          setAlert({
+            message: "Message not found",
+            type: "warning",
+          });
+        }
+      }
+    } catch (error) {
+      throw new Error("Failed to go to message");
+    }
+  };
   //#endregion
 
   return (
@@ -944,6 +1033,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             fetchMoreMessages,
             setAutoScroll,
             clearMessageToInitialScrollTo,
+            goToMessage,
             getContext,
           }}
         >

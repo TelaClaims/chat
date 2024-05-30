@@ -15,21 +15,31 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { ContextMenuItem, DefaultContextMenuOptions } from "@/package/types";
 
 interface Props {
   onClickOption: (reason: "copy" | "edit" | "delete") => void;
-  hiddenOptions?: ("copy" | "edit" | "delete")[];
+  onClickExtendedOption: (extendedOption: ContextMenuItem) => void;
+  hiddenOptions?: DefaultContextMenuOptions[];
+  extendedContextMenu?: ContextMenuItem[];
 }
 
 interface MSGMenuProps {
   anchorEl: HTMLElement | null;
   open: boolean;
   handleClose: () => void;
-  handleClickOptionMenu: (reason: "copy" | "edit" | "delete") => void;
-  hiddenOptions?: ("copy" | "edit" | "delete")[];
+  handleClickOptionMenu: (reason: DefaultContextMenuOptions) => void;
+  handleClickExtendedOptionMenu: (extendedOption: ContextMenuItem) => void;
+  hiddenOptions?: DefaultContextMenuOptions[];
+  extendedContextMenu?: ContextMenuItem[];
 }
 
-export const MessageMenu = ({ onClickOption, hiddenOptions }: Props) => {
+export const MessageMenu = ({
+  onClickOption,
+  onClickExtendedOption,
+  hiddenOptions,
+  extendedContextMenu,
+}: Props) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -51,6 +61,10 @@ export const MessageMenu = ({ onClickOption, hiddenOptions }: Props) => {
 
   const handleClickOptionMenu = (reason: "copy" | "edit" | "delete") => {
     onClickOption(reason);
+  };
+
+  const handleClickExtendedOptionMenu = (extendedOption: ContextMenuItem) => {
+    onClickExtendedOption(extendedOption);
   };
 
   const hideEdit = hiddenOptions?.includes("edit");
@@ -94,7 +108,9 @@ export const MessageMenu = ({ onClickOption, hiddenOptions }: Props) => {
         open={open}
         handleClose={handleClose}
         handleClickOptionMenu={handleClickOptionMenu}
+        handleClickExtendedOptionMenu={handleClickExtendedOptionMenu}
         hiddenOptions={hiddenOptions}
+        extendedContextMenu={extendedContextMenu}
       />
     </ButtonGroup>
   );
@@ -105,7 +121,9 @@ export const MSGMenu = ({
   open,
   handleClose,
   handleClickOptionMenu,
+  handleClickExtendedOptionMenu,
   hiddenOptions,
+  extendedContextMenu,
 }: MSGMenuProps) => {
   const handleClickOption = (
     event: React.MouseEvent<HTMLLIElement, MouseEvent>,
@@ -113,6 +131,15 @@ export const MSGMenu = ({
   ) => {
     event.preventDefault();
     handleClickOptionMenu(reason);
+    handleClose();
+  };
+
+  const handleClickExtendedOption = (
+    event: React.MouseEvent<HTMLLIElement, MouseEvent>,
+    extendedOption: ContextMenuItem
+  ) => {
+    event.preventDefault();
+    handleClickExtendedOptionMenu(extendedOption);
     handleClose();
   };
 
@@ -148,6 +175,35 @@ export const MSGMenu = ({
             padding: 0,
           }}
         >
+          {extendedContextMenu?.map((item) => (
+            <MenuItem
+              key={item.key}
+              onClick={(e) => handleClickExtendedOption(e, item)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                color: colors.grey["800"],
+                transition: "all 0.1s ease-in-out",
+                ":hover": {
+                  color: colors.common.white,
+                  bgcolor: colors.grey["600"],
+                },
+              }}
+            >
+              <ListItemText>{item.label}</ListItemText>
+              <ListItemIcon
+                sx={{
+                  justifyContent: "flex-end",
+                  color: "inherit",
+                }}
+              >
+                {item.Icon}
+                {/* <ContentCopyIcon fontSize="small" color="inherit" /> */}
+              </ListItemIcon>
+            </MenuItem>
+          ))}
+
           {!hideCopy && (
             <MenuItem
               onClick={(e) => handleClickOption(e, "copy")}

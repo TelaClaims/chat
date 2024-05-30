@@ -1,7 +1,8 @@
-import { useIsTyping, useOnUpdateNewMessagesCount } from "@/package/hooks";
+import { useOnUpdateNewMessagesCount } from "@/package/hooks";
 import { Conversation } from "@/package/types";
 import { Badge, Box, ListItemButton, Typography } from "@mui/material";
 import { IndividualConversation } from "../../IndividualConversation/IndividualConversation";
+import { useSideBar } from "@/package/context/SideBarPanel/context";
 
 interface Props {
   conversation: Conversation;
@@ -12,9 +13,10 @@ export const ConversationItem = ({
   conversation,
   onSelectConversation,
 }: Props) => {
+  const { open } = useSideBar();
+
   const { conversation: twilioConversation, type, partyUsers } = conversation;
 
-  const { participant, isTyping } = useIsTyping(twilioConversation);
   const { newMessagesCount } = useOnUpdateNewMessagesCount(twilioConversation);
 
   const handleClickConversation = (
@@ -27,16 +29,27 @@ export const ConversationItem = ({
   return (
     <ListItemButton
       onClick={handleClickConversation}
-      sx={{ display: "flex", justifyContent: "space-between" }}
+      sx={{
+        display: "flex",
+        justifyContent: open ? "space-between" : "center",
+        overflow: "hidden",
+      }}
     >
       {type === "individual" && (
         <>
-          <IndividualConversation user={partyUsers[0]} isTyping={isTyping} />
-          {newMessagesCount > 0 && (
-            <Box display={"flex"} alignItems={"center"} gap={2}>
-              <Typography variant={"caption"}>New messages</Typography>
-              <Badge badgeContent={newMessagesCount} color="primary" />
-            </Box>
+          <IndividualConversation
+            user={partyUsers[0]}
+            fullDisplay={open}
+            newMessagesCount={open ? 0 : newMessagesCount}
+          />
+          {open && (
+            <>
+              {newMessagesCount > 0 && (
+                <Box display={"flex"} alignItems={"center"} gap={2}>
+                  <Badge badgeContent={newMessagesCount} color="primary" />
+                </Box>
+              )}
+            </>
           )}
         </>
       )}
@@ -45,9 +58,7 @@ export const ConversationItem = ({
           <Typography variant={"body2"}>
             {twilioConversation.uniqueName}
           </Typography>
-          <Typography variant={"body2"}>
-            {isTyping ? `${participant?.identity} is typing...` : ""}
-          </Typography>
+
           {newMessagesCount > 0 && (
             <Box display={"flex"} alignItems={"center"} gap={2}>
               <Typography variant={"caption"}>New messages</Typography>

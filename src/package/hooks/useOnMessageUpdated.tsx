@@ -1,5 +1,6 @@
 import { Message, MessageUpdateReason } from "@twilio/conversations";
 import { useEffect, useState } from "react";
+import { MessageAttributes } from "../types";
 
 interface Props {
   message: Message;
@@ -7,6 +8,7 @@ interface Props {
 
 export const useOnMessageUpdated = ({ message }: Props) => {
   const [updatedMessageBy, setUpdatedMessageBy] = useState("");
+  const [updatedTags, setUpdatedTags] = useState<string[]>([]);
 
   useEffect(() => {
     const checkMessageUpdate = ({
@@ -17,6 +19,13 @@ export const useOnMessageUpdated = ({ message }: Props) => {
     }) => {
       if (updateReasons.includes("body") && message.lastUpdatedBy) {
         setUpdatedMessageBy(message.lastUpdatedBy);
+      }
+
+      if (updateReasons.includes("attributes")) {
+        const messageAttributes = message.attributes as MessageAttributes;
+        if (messageAttributes.tags) {
+          setUpdatedTags(messageAttributes.tags);
+        }
       }
     };
 
@@ -31,5 +40,5 @@ export const useOnMessageUpdated = ({ message }: Props) => {
     };
   }, [message]);
 
-  return { updatedMessageBy };
+  return { updatedMessageBy, updatedTags };
 };

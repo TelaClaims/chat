@@ -7,3 +7,8 @@ export type ConversationAttributes = {
 export type UserAttributes = {
   contact: ContactInput;
 };
+
+export type MessageAttributes = {
+  data?: unknown;
+  tags?: string[];
+};

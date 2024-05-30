@@ -1,6 +1,6 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box, IconButton } from "@mui/material";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import CloseIcon from "@mui/icons-material/Close";
 import { useIsTyping } from "@/package/hooks";
 import { ConversationAttributes } from "@/package/types";
 import { IndividualConversation } from "../IndividualConversation/IndividualConversation";
@@ -30,10 +30,14 @@ export const ChatTopBar = () => {
       borderBottom={"1px solid #ccc"}
     >
       <IconButton onClick={handleCloseChat}>
-        <ChevronLeftIcon />
+        <CloseIcon fontSize="small" />
       </IconButton>
       {type === "individual" && (
-        <IndividualConversation user={partyUsers![0]} isTyping={isTyping} />
+        <IndividualConversation
+          user={partyUsers![0]}
+          isTyping={isTyping}
+          fullDisplay
+        />
       )}
       <span></span>
     </Box>

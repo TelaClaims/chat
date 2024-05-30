@@ -3,6 +3,7 @@ import {
   ChatSettings,
   Contact,
   ContactInput,
+  ContextMenuItem,
   Conversation,
 } from "@/package/types";
 import { Client, Message, Paginator } from "@twilio/conversations";
@@ -26,6 +27,11 @@ export type InitialState = {
     message: Message;
     reason: "copy" | "edit" | "delete";
   };
+  messagesExtendedContextMenu?: ContextMenuItem[];
+  goingToMessage?: {
+    index: number;
+    isGoing: boolean;
+  };
 };
 
 export type ChatAction = {
@@ -38,7 +44,9 @@ export type ChatAction = {
     | "selectContact"
     | "setActiveConversation"
     | "updateParticipantTyping"
-    | "selectMessage";
+    | "selectMessage"
+    | "setMessagesExtendedContextMenu"
+    | "setGoingToMessage";
   payload: Partial<InitialState>;
 };
 
@@ -63,5 +71,6 @@ export type ChatDispatch = {
     scrollOptions?: ScrollIntoViewOptions
   ) => void;
   clearMessageToInitialScrollTo: () => void;
+  goToMessage: (index: number) => void;
   getContext: () => InitialState;
 };

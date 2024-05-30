@@ -11,7 +11,7 @@ import { ContainerStyles } from "./components/Container/styles";
 import { Main } from "./layouts/Main";
 import { useEffect } from "react";
 import { useChat, useChatDispatch } from "./context/Chat/context";
-import { ContactInput, Events, Handlers } from "./types";
+import { ContactInput, ContextMenuItem, Events, Handlers } from "./types";
 
 const theme = createTheme();
 
@@ -21,6 +21,7 @@ interface ChatProps {
   handlers?: Handlers;
   styles?: ContainerStyles;
   showStatus?: boolean;
+  messagesExtendedContextMenu?: ContextMenuItem[];
 }
 
 const Chat = ({
@@ -29,6 +30,7 @@ const Chat = ({
   handlers,
   events,
   styles,
+  messagesExtendedContextMenu,
 }: ChatProps) => {
   const { view } = useChat();
   const { initializeChat, setAlert } = useChatDispatch();
@@ -45,6 +47,7 @@ const Chat = ({
       initializeChat({
         contact,
         events,
+        messagesExtendedContextMenu,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

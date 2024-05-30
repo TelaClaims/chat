@@ -1,15 +1,13 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
-import { useSideBar } from "@/package/context/SideBarPanel/context";
 import { List } from "@mui/material";
 import { ConversationBindings, ParticipantType } from "@twilio/conversations";
 import { ConversationItem } from "./ConversationItem";
 import { ContactInput, Conversation } from "@/package/types";
-import { getContact } from "@/package/utils";
+import { getContact, scrollStyles } from "@/package/utils";
 
 export const ConversationsPanel = () => {
   const { conversations } = useChat();
   const { selectContact } = useChatDispatch();
-  const { closeSideBar } = useSideBar();
 
   const handleClickConversation = (conversation: Conversation) => {
     const { partyParticipants, type, partyUsers } = conversation;
@@ -31,14 +29,18 @@ export const ConversationsPanel = () => {
         partyContact = getContact(partyUsers[0]);
       }
       selectContact(partyContact, "on-chat");
-      closeSideBar();
     }
   };
 
   if (!conversations) return null;
 
   return (
-    <List sx={{ maxHeight: "calc(100% - 74px)", overflowY: "auto" }}>
+    <List
+      sx={{
+        minHeight: "calc(100% - 74px)",
+        ...scrollStyles,
+      }}
+    >
       {conversations.map((conversation) => {
         return (
           <ConversationItem

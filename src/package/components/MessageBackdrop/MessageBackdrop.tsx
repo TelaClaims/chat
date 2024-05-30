@@ -1,11 +1,11 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 
 export const MessageBackdrop = () => {
-  const { selectedMessage } = useChat();
+  const { selectedMessage, goingToMessage } = useChat();
   const { selectMessage } = useChatDispatch();
 
-  if (!selectedMessage) return null;
+  if (!selectedMessage && !goingToMessage?.isGoing) return null;
 
   return (
     <Box
@@ -19,7 +19,13 @@ export const MessageBackdrop = () => {
         zIndex: 1,
         backdropFilter: "blur(3px)",
         display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
-    />
+    >
+      {goingToMessage?.isGoing && (
+        <CircularProgress color="primary" size={60} />
+      )}
+    </Box>
   );
 };

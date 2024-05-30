@@ -1,9 +1,11 @@
 import { styled } from "@mui/material";
 import ControlPanel from "./components/ControlPanel";
-import { Chat, ContactInput } from "@/package";
+import { Chat, ContactInput, MessageAttributes } from "@/package";
 import { useState } from "react";
 import { contactList } from "./contacts.mock";
 import { isValidPhoneNumber } from "libphonenumber-js";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import { Message } from "@twilio/conversations";
 
 const Layout = styled("div")`
   display: flex;
@@ -49,6 +51,80 @@ function App() {
     return results;
   };
 
+  const onClickTag = async (tag: string, message: Message) => {
+    if (message.author === contact?.identity) {
+      if (tag === "claim") {
+        handleCustomContextMenuAction(message);
+      }
+    }
+  };
+
+  const handleCustomContextMenuAction = async (message: Message) => {
+    const messageAttributes = message.attributes as MessageAttributes;
+
+    const data = messageAttributes.data;
+
+    if (!data) {
+      const response = window.confirm(
+        `This message does not have any attributes. Do you want to add some?`
+      );
+
+      if (response) {
+        await message.updateAttributes({
+          data: {
+            claims: [
+              {
+                id: 1,
+                name: "claim-1",
+                link: "https://example.com/claim-1",
+              },
+              {
+                id: 2,
+                name: "claim-2",
+                link: "https://example.com/claim-2",
+              },
+            ],
+          },
+          tags: ["claim"],
+        });
+      }
+
+      return;
+    }
+
+    const { claims } = data as {
+      claims: { id: number; name: string; link: string }[];
+    };
+
+    if (claims.length) {
+      const response = window.confirm(
+        `This message already has attributes:
+        ${JSON.stringify(claims, null, 2)}.
+        Do you want to update them?`
+      );
+      if (!response) {
+        return;
+      }
+    }
+    await message.updateAttributes({
+      data: {
+        claims: [
+          {
+            id: 1,
+            name: "claim-1",
+            link: "https://example.com/claim-1",
+          },
+          {
+            id: 2,
+            name: "claim-2",
+            link: "https://example.com/claim-2",
+          },
+        ],
+      },
+      tags: ["claim"],
+    });
+  };
+
   return (
     <Layout>
       <ControlPanel
@@ -63,7 +139,17 @@ function App() {
         }}
         handlers={{
           onLookupContact,
+          onClickTag,
         }}
+        messagesExtendedContextMenu={[
+          {
+            key: "custom-action",
+            label: "Custom Action",
+            Icon: <AutoAwesomeIcon fontSize="small" color="inherit" />,
+            direction: "outgoing",
+            onClick: handleCustomContextMenuAction,
+          },
+        ]}
       />
     </Layout>
   );

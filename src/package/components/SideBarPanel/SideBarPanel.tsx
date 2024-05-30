@@ -1,89 +1,47 @@
 import Styles from "./styles";
-import { Box, Divider, IconButton, Typography } from "@mui/material";
-import { SideBarOption, SideBarProps } from "@/package/types";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Fragment, useEffect } from "react";
-import { useSideBar } from "@/package/context/SideBarPanel/context";
-import GroupsIcon from "@mui/icons-material/Groups";
+import { Box, IconButton, Typography } from "@mui/material";
+import { SideBarProps } from "@/package/types";
 import { ConversationsPanel } from "./ConversationsPanel/ConversationsPanel";
-import { useChat } from "@/package/context/Chat/context";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { useSideBar } from "@/package/context/SideBarPanel/context";
 
-export const SideBarPanel = ({ styles, options }: SideBarProps) => {
-  const { client } = useChat();
-  const { open, activePanel, closeSideBar, updateOptions, openSideBar } =
-    useSideBar();
-
-  const defaultOption: SideBarOption = {
-    id: "conversations",
-    title: "Conversations",
-    component: (
-      <IconButton
-        disabled={client?.connectionState !== "connected"}
-        onClick={() => openSideBar("conversations")}
-      >
-        <GroupsIcon />
-      </IconButton>
-    ),
-    panelComponent: <ConversationsPanel />,
-    position: "top",
-  };
-
-  useEffect(() => {
-    updateOptions([defaultOption, ...(options || [])]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options?.length]);
-
-  const topOptions =
-    options?.filter((option) => option.position !== "bottom") || [];
-  const bottomOptions = options?.filter(
-    (option) => option.position === "bottom"
-  );
-
-  topOptions.unshift(defaultOption);
+export const SideBarPanel = ({ styles }: SideBarProps) => {
+  const { open, openSideBar, closeSideBar } = useSideBar();
 
   return (
     <Styles.SideBarPanel>
       <Styles.Container styles={styles} isOpen={open} boxShadow={3}>
-        {open ? (
-          <Box display={"flex"} flexDirection={"column"} m={2} height={"100%"}>
-            <Box display={"flex"} justifyContent={"space-between"}>
-              <Typography variant={"h6"}>{activePanel?.title}</Typography>
-              <IconButton aria-label={"toggle close"} onClick={closeSideBar}>
+        <Box display={"flex"} flexDirection={"column"} height={"100%"}>
+          {open ? (
+            <Box
+              display={"flex"}
+              p={1}
+              justifyContent={"space-between"}
+              alignItems={"center"}
+              borderBottom={"1px solid #ccc"}
+              minHeight={"42px"}
+            >
+              <Typography variant={"h6"}>Conversations</Typography>
+              <IconButton onClick={closeSideBar}>
                 <ChevronRightIcon />
               </IconButton>
             </Box>
-            <Divider />
-            <Box height={"100%"}>{activePanel?.panelComponent}</Box>
-          </Box>
-        ) : (
-          <Box
-            display={"flex"}
-            flexDirection={"column"}
-            justifyContent={"space-between"}
-            height={"100%"}
-          >
+          ) : (
             <Box
               display={"flex"}
-              flexDirection={"column"}
-              alignItems={"start"}
-              m={1.5}
+              justifyContent={"end"}
+              p={1}
+              borderBottom={"1px solid #ccc"}
+              minHeight={"42px"}
             >
-              {topOptions?.map((option) => (
-                <Fragment key={option.id}>{option.component}</Fragment>
-              ))}
+              <IconButton onClick={openSideBar}>
+                <ChevronLeftIcon />
+              </IconButton>
             </Box>
-            <Box
-              display={"flex"}
-              flexDirection={"column"}
-              alignItems={"start"}
-              m={1.5}
-            >
-              {bottomOptions?.map((option) => (
-                <Fragment key={option.id}>{option.component}</Fragment>
-              ))}
-            </Box>
-          </Box>
-        )}
+          )}
+          <ConversationsPanel />
+        </Box>
       </Styles.Container>
     </Styles.SideBarPanel>
   );

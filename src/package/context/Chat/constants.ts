@@ -21,4 +21,5 @@ export const CHAT_DISPATCH: ChatDispatch = {
   setAutoScroll: () => {},
   getContext: () => INITIAL_STATE,
   clearMessageToInitialScrollTo: () => {},
+  goToMessage: () => {},
 };

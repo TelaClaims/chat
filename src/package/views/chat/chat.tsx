@@ -17,9 +17,15 @@ import {
 } from "@/package/hooks";
 import { Message } from "@twilio/conversations";
 import { useInView } from "react-intersection-observer";
+import { scrollStyles } from "@/package/utils";
+import { Handlers } from "@/package/types";
 
-const ChatView = () => {
-  const { activeConversation } = useChat();
+interface Props {
+  onClickTag: Handlers["onClickTag"];
+}
+
+const ChatView = ({ onClickTag }: Props) => {
+  const { activeConversation, selectedMessage } = useChat();
   const { fetchMoreMessages, clearMessageToInitialScrollTo, getContext } =
     useChatDispatch();
   const { loading, conversation, autoScroll, messagesPaginator, messages } =
@@ -168,6 +174,8 @@ const ChatView = () => {
   }
 
   const showAlertMessage = !messagesEndInViewPort && newMessagesCount > 0;
+  const showAlertMessageScrollToBottom =
+    !messagesEndInViewPort && !selectedMessage;
 
   return (
     <Stack>
@@ -186,13 +194,19 @@ const ChatView = () => {
       <Stack.Segment
         flex={0.8}
         width={"100%"}
-        overflow={"auto"}
         display={"flex"}
         height={"100%"}
+        sx={{
+          ...scrollStyles,
+        }}
       >
         <MessageBackdrop />
         {messages?.length ? (
-          <List sx={{ width: "100%" }}>
+          <List
+            sx={{
+              width: "100%",
+            }}
+          >
             {messages?.map((message, index) => (
               <Box
                 key={message.sid}
@@ -219,6 +233,7 @@ const ChatView = () => {
                     lastMessageReadByParticipants.index !== -1 &&
                     lastMessageReadByParticipants.index >= message.index
                   }
+                  onClickTag={onClickTag}
                 />
               </Box>
             ))}
@@ -245,7 +260,7 @@ const ChatView = () => {
       {/* Chat Input Tools */}
       <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={1}>
         <MessageAlertScrollToBottom
-          show={!messagesEndInViewPort}
+          show={showAlertMessageScrollToBottom}
           onClick={goToLastMessage}
         />
         <MessageAlert
