@@ -5,6 +5,11 @@ export const INITIAL_STATE: InitialState = {
   contact: new Contact({ identity: "" }),
   view: "active",
   conversations: [],
+  search: {
+    active: false,
+    query: "",
+    results: [],
+  },
 };
 
 export const CHAT_DISPATCH: ChatDispatch = {
@@ -22,4 +27,7 @@ export const CHAT_DISPATCH: ChatDispatch = {
   getContext: () => INITIAL_STATE,
   clearMessageToInitialScrollTo: () => {},
   goToMessage: () => {},
+  setSearch: () => {},
+  searchMessages: () => Promise.resolve([]),
+  resetSearchMessages: () => {},
 };

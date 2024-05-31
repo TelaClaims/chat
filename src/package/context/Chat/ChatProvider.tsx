@@ -19,6 +19,7 @@ import {
   ContextMenuItem,
   Conversation,
   ConversationAttributes,
+  MessageAttributes,
   UserAttributes,
   defaultChatSettings,
 } from "@/package/types";
@@ -91,6 +92,12 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
         ...state,
         goingToMessage: action.payload
           .goingToMessage as InitialState["goingToMessage"],
+      };
+    }
+    case "setSearch": {
+      return {
+        ...state,
+        search: action.payload.search as InitialState["search"],
       };
     }
     default: {
@@ -390,6 +397,79 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   };
 
+  const goToMessage = async (messageIndex: number) => {
+    try {
+      let message: Message | undefined;
+
+      const { activeConversation } = chatRef.current;
+
+      if (!activeConversation) {
+        setAlert({
+          message: "No active conversation",
+          type: "warning",
+        });
+        return;
+      }
+
+      const { conversation } = activeConversation;
+      const lastMessageIndex = conversation.lastMessage?.index || 0;
+
+      if (messageIndex < 0 || messageIndex > lastMessageIndex) {
+        setAlert({
+          message: "Message not found",
+          type: "warning",
+        });
+        return;
+      }
+
+      const messagePaginator = await fetchMoreMessages(messageIndex);
+      if (messagePaginator) {
+        message = messagePaginator.items.find((m) => m.index === messageIndex);
+
+        if (message) {
+          dispatch({
+            type: "setGoingToMessage",
+            payload: {
+              goingToMessage: {
+                index: messageIndex,
+                isGoing: true,
+              },
+            },
+          });
+          setTimeout(() => {
+            setAutoScroll(message!, {
+              behavior: "auto",
+              block: "center",
+            });
+            dispatch({
+              type: "setGoingToMessage",
+              payload: {
+                goingToMessage: {
+                  index: messageIndex,
+                  isGoing: false,
+                },
+              },
+            });
+          }, 1000);
+        } else {
+          setAlert({
+            message: "Message not found",
+            type: "warning",
+          });
+        }
+      }
+    } catch (error) {
+      throw new Error("Failed to go to message");
+    }
+  };
+
+  const setSearch = (searchState: InitialState["search"]) => {
+    const currentSearch = chatRef.current.search;
+    dispatch({
+      type: "setSearch",
+      payload: { search: { ...currentSearch, ...searchState } },
+    });
+  };
   //#endregion
 
   //#region utils functions
@@ -751,6 +831,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         },
       },
     });
+
+    resetSearchMessages();
   };
 
   const fetchConversations = async () => {
@@ -938,6 +1020,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return messagesPaginator;
   };
 
+  const getAllMessages = async (conversation: TwilioConversation) => {
+    let messages: Message[] = [];
+    let messagesPaginator: Paginator<Message>;
+
+    // do a loop to fetch all messages using messagesPaginator
+    messagesPaginator = await conversation.getMessages(100);
+
+    while (messagesPaginator.items.length) {
+      messages = messages.concat(messagesPaginator.items);
+
+      if (messagesPaginator.hasPrevPage) {
+        messagesPaginator = await messagesPaginator.prevPage();
+      } else {
+        break; // No more pages to fetch
+      }
+    }
+
+    return messages;
+  };
+
   const getClient = (): Client => {
     const { client } = chatRef.current;
 
@@ -960,59 +1062,45 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   };
 
-  const goToMessage = async (index: number) => {
-    try {
-      let message: Message | undefined;
-
-      const { activeConversation } = chatRef.current;
-
-      if (!activeConversation) {
-        setAlert({
-          message: "No active conversation",
-          type: "warning",
-        });
-      }
-
-      // lookup for the message in other paginator
-      const messagePaginator = await fetchMoreMessages(index);
-      if (messagePaginator) {
-        message = messagePaginator.items.find((m) => m.index === index);
-
-        if (message) {
-          dispatch({
-            type: "setGoingToMessage",
-            payload: {
-              goingToMessage: {
-                index,
-                isGoing: true,
-              },
-            },
-          });
-          setTimeout(() => {
-            setAutoScroll(message!, {
-              behavior: "auto",
-              block: "center",
-            });
-            dispatch({
-              type: "setGoingToMessage",
-              payload: {
-                goingToMessage: {
-                  index,
-                  isGoing: false,
-                },
-              },
-            });
-          }, 1000);
-        } else {
-          setAlert({
-            message: "Message not found",
-            type: "warning",
-          });
-        }
-      }
-    } catch (error) {
-      throw new Error("Failed to go to message");
+  const searchMessages = async ({
+    query,
+  }: {
+    query: string;
+  }): Promise<Message[]> => {
+    const { activeConversation } = chatRef.current;
+    if (!activeConversation) {
+      setAlert({
+        message: "No active conversation",
+        type: "warning",
+      });
+      return [];
     }
+
+    const { conversation } = activeConversation;
+    const messages = await getAllMessages(conversation);
+
+    const results = messages
+      .filter((message) => {
+        const messageAttribute = message.attributes as MessageAttributes;
+        return (
+          message.body?.toLowerCase().includes(query.toLowerCase()) ||
+          messageAttribute.tags?.includes(query.toLowerCase())
+        );
+      })
+      .sort((a, b) => {
+        return b.index - a.index;
+      });
+
+    return results;
+  };
+
+  const resetSearchMessages = () => {
+    setSearch({
+      active: false,
+      query: "",
+      results: [],
+      isSearching: false,
+    });
   };
   //#endregion
 
@@ -1035,6 +1123,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             clearMessageToInitialScrollTo,
             goToMessage,
             getContext,
+            setSearch,
+            searchMessages,
+            resetSearchMessages,
           }}
         >
           {children}

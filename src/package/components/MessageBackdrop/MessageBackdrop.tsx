@@ -1,15 +1,29 @@
-import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box, CircularProgress } from "@mui/material";
 
-export const MessageBackdrop = () => {
-  const { selectedMessage, goingToMessage } = useChat();
-  const { selectMessage } = useChatDispatch();
+interface Props {
+  show?: boolean;
+  displayLoading?: boolean;
+  onClick: () => void;
+  children?: React.ReactNode;
+}
 
-  if (!selectedMessage && !goingToMessage?.isGoing) return null;
+export const MessageBackdrop = ({
+  show,
+  displayLoading,
+  onClick,
+  children,
+}: Props) => {
+  // const { selectedMessage, goingToMessage } = useChat();
+  // const { selectMessage } = useChatDispatch();
+
+  // if (!selectedMessage && !goingToMessage?.isGoing) return null;
+
+  if (!show) return null;
 
   return (
     <Box
-      onClick={() => selectMessage()}
+      // onClick={() => selectMessage()}
+      onClick={onClick}
       sx={{
         position: "absolute",
         top: 0,
@@ -23,9 +37,11 @@ export const MessageBackdrop = () => {
         alignItems: "center",
       }}
     >
-      {goingToMessage?.isGoing && (
-        <CircularProgress color="primary" size={60} />
-      )}
+      {/* {goingToMessage?.isGoing && (
+          <CircularProgress color="primary" size={60} />
+        )} */}
+      {displayLoading && <CircularProgress color="primary" size={60} />}
+      {children}
     </Box>
   );
 };

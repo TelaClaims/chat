@@ -32,6 +32,12 @@ export type InitialState = {
     index: number;
     isGoing: boolean;
   };
+  search: {
+    active?: boolean;
+    query?: string;
+    results?: Message[];
+    isSearching?: boolean;
+  };
 };
 
 export type ChatAction = {
@@ -46,7 +52,8 @@ export type ChatAction = {
     | "updateParticipantTyping"
     | "selectMessage"
     | "setMessagesExtendedContextMenu"
-    | "setGoingToMessage";
+    | "setGoingToMessage"
+    | "setSearch";
   payload: Partial<InitialState>;
 };
 
@@ -73,4 +80,7 @@ export type ChatDispatch = {
   clearMessageToInitialScrollTo: () => void;
   goToMessage: (index: number) => void;
   getContext: () => InitialState;
+  setSearch: (searchState: InitialState["search"]) => void;
+  searchMessages: ({ query }: { query: string }) => Promise<Message[]>;
+  resetSearchMessages: () => void;
 };

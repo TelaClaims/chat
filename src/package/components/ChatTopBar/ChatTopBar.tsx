@@ -4,11 +4,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useIsTyping } from "@/package/hooks";
 import { ConversationAttributes } from "@/package/types";
 import { IndividualConversation } from "../IndividualConversation/IndividualConversation";
+import { Search } from "../Search/Search";
+import SearchIcon from "@mui/icons-material/Search";
 
 export const ChatTopBar = () => {
-  const { activeConversation } = useChat();
+  const { activeConversation, search } = useChat();
   const { conversation, partyUsers } = activeConversation || {};
-  const { clearSelectedContact, setView } = useChatDispatch();
+  const { clearSelectedContact, setView, setSearch } = useChatDispatch();
   const { isTyping } = useIsTyping(conversation);
 
   const conversationAttributes =
@@ -20,6 +22,14 @@ export const ChatTopBar = () => {
     setView("active");
   };
 
+  const handleClickSearch = () => {
+    if (!search.active) {
+      setSearch({
+        active: true,
+      });
+    }
+  };
+
   return (
     <Box
       display={"flex"}
@@ -29,17 +39,25 @@ export const ChatTopBar = () => {
       p={1}
       borderBottom={"1px solid #ccc"}
     >
-      <IconButton onClick={handleCloseChat}>
-        <CloseIcon fontSize="small" />
-      </IconButton>
-      {type === "individual" && (
-        <IndividualConversation
-          user={partyUsers![0]}
-          isTyping={isTyping}
-          fullDisplay
-        />
+      {search.active ? (
+        <Search />
+      ) : (
+        <>
+          <IconButton onClick={handleCloseChat}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          {type === "individual" && (
+            <IndividualConversation
+              user={partyUsers![0]}
+              isTyping={isTyping}
+              fullDisplay
+            />
+          )}
+          <IconButton onClick={handleClickSearch}>
+            <SearchIcon />
+          </IconButton>
+        </>
       )}
-      <span></span>
     </Box>
   );
 };

@@ -10,6 +10,7 @@ import {
   MessageBackdrop,
   MessageDateLine,
   MessageUI,
+  SearchResults,
 } from "@/package/components";
 import {
   useLastMessageRead,
@@ -25,9 +26,14 @@ interface Props {
 }
 
 const ChatView = ({ onClickTag }: Props) => {
-  const { activeConversation, selectedMessage } = useChat();
-  const { fetchMoreMessages, clearMessageToInitialScrollTo, getContext } =
-    useChatDispatch();
+  const { activeConversation, selectedMessage, goingToMessage, search } =
+    useChat();
+  const {
+    fetchMoreMessages,
+    clearMessageToInitialScrollTo,
+    getContext,
+    selectMessage,
+  } = useChatDispatch();
   const { loading, conversation, autoScroll, messagesPaginator, messages } =
     activeConversation || {};
 
@@ -142,6 +148,10 @@ const ChatView = ({ onClickTag }: Props) => {
     }
   };
 
+  const handleClickBackdrop = () => {
+    selectMessage();
+  };
+
   // scroll to the message when the autoScroll message is set and clear the autoScroll after scrolling
   useEffect(() => {
     if (autoScroll?.message) {
@@ -173,9 +183,10 @@ const ChatView = ({ onClickTag }: Props) => {
     );
   }
 
-  const showAlertMessage = !messagesEndInViewPort && newMessagesCount > 0;
+  const showAlertMessage =
+    !messagesEndInViewPort && newMessagesCount > 0 && !search.active;
   const showAlertMessageScrollToBottom =
-    !messagesEndInViewPort && !selectedMessage;
+    !messagesEndInViewPort && !selectedMessage && !search.active;
 
   return (
     <Stack>
@@ -200,7 +211,15 @@ const ChatView = ({ onClickTag }: Props) => {
           ...scrollStyles,
         }}
       >
-        <MessageBackdrop />
+        <MessageBackdrop
+          show={Boolean(
+            selectedMessage?.message || goingToMessage?.isGoing || search.active
+          )}
+          displayLoading={goingToMessage?.isGoing}
+          onClick={handleClickBackdrop}
+        >
+          <SearchResults />
+        </MessageBackdrop>
         {messages?.length ? (
           <List
             sx={{

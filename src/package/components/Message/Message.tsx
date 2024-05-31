@@ -81,6 +81,10 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
         borderRadius={"10px"}
         onMouseEnter={() => setShowMenu(true)}
         onMouseLeave={() => setShowMenu(false)}
+        sx={{
+          boxShadow:
+            "rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
+        }}
       >
         {/* Menu section */}
         {showMenu && (
@@ -102,18 +106,30 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
           </Box>
         )}
 
+        {/* Author section */}
+        {direction === "incoming" && (
+          <Typography
+            variant="subtitle2"
+            fontWeight={"bold"}
+            fontSize={14}
+            color={colors.grey[800]}
+          >
+            {message.author}
+          </Typography>
+        )}
+
         {/* Body section */}
+        {message.attachedMedia?.[0] && (
+          <MediaMessage media={message.attachedMedia[0]} />
+        )}
         <Typography
           variant={"body2"}
           sx={{
             overflowWrap: "break-word",
           }}
         >
-          {message.attachedMedia?.[0] && (
-            <MediaMessage media={message.attachedMedia[0]} />
-          )}
-          {message.index}
-          {/* {message.body} */}
+          {/* {message.index} */}
+          {message.body}
         </Typography>
 
         {/* Time and read status section */}
