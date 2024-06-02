@@ -1,3 +1,4 @@
+import { MessagePagination } from "./../../types/Pagination";
 import { Contact } from "@/package/types";
 import { InitialState, ChatDispatch } from "./types";
 
@@ -8,7 +9,10 @@ export const INITIAL_STATE: InitialState = {
   search: {
     active: false,
     query: "",
-    results: [],
+    results: {
+      items: [],
+      hasMore: false,
+    },
   },
 };
 
@@ -28,6 +32,6 @@ export const CHAT_DISPATCH: ChatDispatch = {
   clearMessageToInitialScrollTo: () => {},
   goToMessage: () => {},
   setSearch: () => {},
-  searchMessages: () => Promise.resolve([]),
+  searchMessages: () => Promise.resolve({} as MessagePagination),
   resetSearchMessages: () => {},
 };

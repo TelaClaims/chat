@@ -7,13 +7,14 @@ import {
   List,
   ListItemButton,
   Typography,
+  colors,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { MessageAttributes } from "@/package/types";
 
 export const SearchResults = () => {
   const { search } = useChat();
-  const { setSearch, goToMessage } = useChatDispatch();
+  const { setSearch, goToMessage, searchMessages } = useChatDispatch();
 
   if (!search.active) return null;
 
@@ -37,7 +38,36 @@ export const SearchResults = () => {
     goToMessage(messageIndex);
   };
 
-  const totalResults = results?.length || 0;
+  const fetchMoreSearchResults = async () => {
+    const currentQuery = search.query!;
+    const currentItems = results?.items || [];
+
+    const messagesPagination = await searchMessages({
+      query: currentQuery,
+      lastMessageIndex: currentItems[currentItems.length - 1].index,
+    });
+    setSearch({
+      results: {
+        items: [...currentItems, ...messagesPagination.items],
+        hasMore: messagesPagination.hasMore,
+      },
+    });
+  };
+
+  const highlightText = (text: string, highlight: string) => {
+    const parts = text.split(new RegExp(`(${highlight})`, "gi"));
+    return parts.map((part, index) =>
+      part.toLowerCase() === highlight.toLowerCase() ? (
+        <span key={index} style={{ backgroundColor: "yellow" }}>
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
+  const totalResults = results?.items?.length || 0;
 
   return (
     <Box height={"75%"} width={"100%"} bgcolor={"transparent"}>
@@ -68,63 +98,98 @@ export const SearchResults = () => {
         }}
       >
         {totalResults > 0 && (
-          <List>
-            {results!.map((result) => {
-              const resultAttributes = result.attributes as MessageAttributes;
-              const tags = resultAttributes.tags;
-              return (
-                <ListItemButton
-                  key={result.sid}
-                  sx={{
-                    bgcolor: "rgba(12, 12, 12, 0.207);",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                  onClick={(e) => handleClickMessageToSearch(e, result.index)}
-                >
-                  <Box display={"flex"} flexDirection={"column"} width={"75%"}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {result.author}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      sx={{
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {result.body}
-                    </Typography>
+          <>
+            <List>
+              {results?.items!.map((result) => {
+                const resultAttributes = result.attributes as MessageAttributes;
+                const tags = resultAttributes.tags;
+                return (
+                  <ListItemButton
+                    key={result.sid}
+                    sx={{
+                      bgcolor: "rgba(12, 12, 12, 0.207);",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                    onClick={(e) => handleClickMessageToSearch(e, result.index)}
+                  >
                     <Box
                       display={"flex"}
-                      flexWrap={"wrap"}
-                      gap={0.5}
-                      justifyContent={"flex-start"}
+                      flexDirection={"column"}
+                      width={"75%"}
                     >
-                      {tags?.map((tag) => (
-                        <Chip
-                          key={tag}
-                          label={tag}
-                          size="small"
-                          variant="filled"
-                          color="primary"
-                          sx={{
-                            height: "24px",
-                            fontSize: 12,
-                          }}
-                        />
-                      ))}
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {result.author}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        {/* make a highlight in the body world witch contain the query */}
+                        {highlightText(result.body || "", search.query || "")}
+                      </Typography>
+                      <Box
+                        display={"flex"}
+                        flexWrap={"wrap"}
+                        gap={0.5}
+                        justifyContent={"flex-start"}
+                      >
+                        {tags?.map((tag) => (
+                          <Chip
+                            key={tag}
+                            label={
+                              <Typography
+                                sx={{
+                                  fontSize: 12,
+                                  color:
+                                    tag === search.query
+                                      ? colors.common.black
+                                      : colors.common.white,
+                                  backgroundColor:
+                                    tag === search.query
+                                      ? colors.yellow[500]
+                                      : "transparent",
+                                }}
+                              >
+                                {tag}
+                              </Typography>
+                            }
+                            size="small"
+                            variant="filled"
+                            color="primary"
+                            sx={{
+                              height: "24px",
+                            }}
+                          />
+                        ))}
+                      </Box>
                     </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      {result.dateCreated?.toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                </ListItemButton>
-              );
-            })}
-          </List>
+                    <Box>
+                      <Typography variant="caption" color="textSecondary">
+                        {result.dateCreated?.toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                  </ListItemButton>
+                );
+              })}
+            </List>
+            {/* Display fetch more messages button */}
+            {results?.hasMore && (
+              <Box
+                display={"flex"}
+                justifyContent={"center"}
+                alignItems={"center"}
+                height={"50px"}
+                width={"100%"}
+                onClick={fetchMoreSearchResults}
+              >
+                <CircularProgress color="primary" size={20} />
+              </Box>
+            )}
+          </>
         )}
         {search.isSearching && (
           <Box

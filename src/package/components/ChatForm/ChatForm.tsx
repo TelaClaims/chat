@@ -99,6 +99,10 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
           sx={{
             zIndex: 2,
             bgcolor: colors.grey["100"],
+
+            "& .MuiInputLabel-shrink": {
+              transform: "translate(14px, -3px) scale(0.75)", // Ajusta la posición cuando está shrink
+            },
           }}
           inputRef={messageInputRef}
           label="Type a message"

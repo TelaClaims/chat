@@ -1,7 +1,7 @@
 import { Box, IconButton, colors, styled } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import { useRef } from "react";
 import { useChatDispatch } from "@/package/context/Chat/context";
+import AddToPhotosIcon from "@mui/icons-material/AddToPhotos";
 
 const VisuallyHiddenInput = styled("input")({
   clip: "rect(0 0 0 0)",
@@ -55,7 +55,7 @@ export const SendMediaButton = ({ onSelectedFile }: Props) => {
       }}
     >
       <IconButton onClick={handleClickSendMediaMessage}>
-        <AddIcon />
+        <AddToPhotosIcon />
       </IconButton>
       <VisuallyHiddenInput
         type="file"

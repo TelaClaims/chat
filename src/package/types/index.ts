@@ -14,6 +14,7 @@ import { Handlers } from "./ChatActions";
 import { SideBarProps } from "./SideBarOption";
 import { Conversation, ActiveConversation } from "./Conversation";
 import { ContextMenuItem, DefaultContextMenuOptions } from "./ContextMenuItem";
+import { MessagePagination } from "./Pagination";
 
 export { Contact, type ContactInput, type ContactStatus };
 export {
@@ -32,3 +33,4 @@ export {
 };
 export { type Conversation, type ActiveConversation };
 export { type ContextMenuItem, type DefaultContextMenuOptions };
+export { type MessagePagination };

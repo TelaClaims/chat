@@ -15,15 +15,14 @@ export const Search = () => {
       if (query.length > 0 && query !== search.query) {
         setSearch({
           isSearching: true,
-          results: [],
         });
 
-        const results = await searchMessages({ query });
+        const messagesPagination = await searchMessages({ query });
 
         setSearch({
           active: true,
           query,
-          results,
+          results: messagesPagination,
           isSearching: false,
         });
       }

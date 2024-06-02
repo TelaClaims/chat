@@ -20,6 +20,7 @@ import {
   Conversation,
   ConversationAttributes,
   MessageAttributes,
+  MessagePagination,
   UserAttributes,
   defaultChatSettings,
 } from "@/package/types";
@@ -468,6 +469,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     dispatch({
       type: "setSearch",
       payload: { search: { ...currentSearch, ...searchState } },
+    });
+  };
+
+  const resetSearchMessages = () => {
+    setSearch({
+      active: false,
+      query: "",
+      results: {
+        items: [],
+        hasMore: false,
+      },
+      isSearching: false,
     });
   };
   //#endregion
@@ -1020,26 +1033,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return messagesPaginator;
   };
 
-  const getAllMessages = async (conversation: TwilioConversation) => {
-    let messages: Message[] = [];
-    let messagesPaginator: Paginator<Message>;
-
-    // do a loop to fetch all messages using messagesPaginator
-    messagesPaginator = await conversation.getMessages(100);
-
-    while (messagesPaginator.items.length) {
-      messages = messages.concat(messagesPaginator.items);
-
-      if (messagesPaginator.hasPrevPage) {
-        messagesPaginator = await messagesPaginator.prevPage();
-      } else {
-        break; // No more pages to fetch
-      }
-    }
-
-    return messages;
-  };
-
   const getClient = (): Client => {
     const { client } = chatRef.current;
 
@@ -1064,44 +1057,84 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const searchMessages = async ({
     query,
+    lastMessageIndex,
   }: {
     query: string;
-  }): Promise<Message[]> => {
+    lastMessageIndex?: number;
+  }): Promise<MessagePagination> => {
     const { activeConversation } = chatRef.current;
     if (!activeConversation) {
       setAlert({
         message: "No active conversation",
         type: "warning",
       });
-      return [];
+      return {
+        items: [],
+        hasMore: false,
+      };
     }
 
     const { conversation } = activeConversation;
-    const messages = await getAllMessages(conversation);
 
-    const results = messages
-      .filter((message) => {
-        const messageAttribute = message.attributes as MessageAttributes;
-        return (
-          message.body?.toLowerCase().includes(query.toLowerCase()) ||
-          messageAttribute.tags?.includes(query.toLowerCase())
-        );
-      })
-      .sort((a, b) => {
+    const messagesPagination = await getMessagesFilteredByQuery(
+      query,
+      conversation,
+      lastMessageIndex
+    );
+
+    return messagesPagination;
+  };
+
+  const getMessagesFilteredByQuery = async (
+    query: string,
+    conversation: TwilioConversation,
+    lastMessageIndex?: number
+  ) => {
+    const TOTAL_MESSAGES_BY_PAGINATION = 50;
+    const result: MessagePagination = {
+      items: [],
+      hasMore: false,
+    };
+    let messagesPaginator = await conversation.getMessages(
+      100,
+      lastMessageIndex ? lastMessageIndex - 1 : undefined
+    );
+
+    while (messagesPaginator.items.length) {
+      const messages = messagesPaginator.items.sort((a, b) => {
         return b.index - a.index;
       });
 
-    return results;
+      for (const message of messages) {
+        const messageAttribute = message.attributes as MessageAttributes;
+        if (
+          message.body?.toLowerCase().includes(query.toLowerCase()) ||
+          messageAttribute.tags?.includes(query.toLowerCase())
+        ) {
+          result.items.push(message);
+        }
+
+        if (result.items.length >= TOTAL_MESSAGES_BY_PAGINATION) {
+          result.hasMore =
+            result.items.length > TOTAL_MESSAGES_BY_PAGINATION ||
+            messagesPaginator.hasPrevPage;
+          break;
+        }
+      }
+
+      if (
+        result.items.length >= TOTAL_MESSAGES_BY_PAGINATION ||
+        !messagesPaginator.hasPrevPage
+      ) {
+        break;
+      }
+
+      messagesPaginator = await messagesPaginator.prevPage();
+    }
+
+    return result;
   };
 
-  const resetSearchMessages = () => {
-    setSearch({
-      active: false,
-      query: "",
-      results: [],
-      isSearching: false,
-    });
-  };
   //#endregion
 
   return (

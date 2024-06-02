@@ -5,6 +5,7 @@ import {
   ContactInput,
   ContextMenuItem,
   Conversation,
+  MessagePagination,
 } from "@/package/types";
 import { Client, Message, Paginator } from "@twilio/conversations";
 
@@ -35,7 +36,7 @@ export type InitialState = {
   search: {
     active?: boolean;
     query?: string;
-    results?: Message[];
+    results?: MessagePagination;
     isSearching?: boolean;
   };
 };
@@ -81,6 +82,12 @@ export type ChatDispatch = {
   goToMessage: (index: number) => void;
   getContext: () => InitialState;
   setSearch: (searchState: InitialState["search"]) => void;
-  searchMessages: ({ query }: { query: string }) => Promise<Message[]>;
+  searchMessages: ({
+    query,
+    lastMessageIndex,
+  }: {
+    query: string;
+    lastMessageIndex?: number;
+  }) => Promise<MessagePagination>;
   resetSearchMessages: () => void;
 };
