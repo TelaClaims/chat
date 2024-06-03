@@ -180,7 +180,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         await chatRef.current.client.shutdown();
         clearSelectedContact();
         dispatch({ type: "setConversations", payload: { conversations: [] } });
-        dispatch({ type: "setClient", payload: { client: undefined } });
       }
     } catch (error) {
       setAlert({
