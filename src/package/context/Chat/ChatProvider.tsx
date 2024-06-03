@@ -1,6 +1,9 @@
 import { useCallback, useReducer, useRef } from "react";
 import { ChatContext, ChatDispatchContext } from "./context";
-import { INITIAL_STATE } from "./constants";
+import {
+  INITIAL_STATE,
+  TOTAL_SEARCH_MESSAGES_BY_PAGINATION,
+} from "./constants";
 import { InitialState, ChatAction, Views } from "./types";
 import {
   Client,
@@ -172,8 +175,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const shutdownChat = async () => {
-    await chat.client?.shutdown();
-    dispatch({ type: "setClient", payload: { client: undefined } });
+    try {
+      if (chatRef.current.client) {
+        await chatRef.current.client.shutdown();
+        clearSelectedContact();
+        dispatch({ type: "setConversations", payload: { conversations: [] } });
+        dispatch({ type: "setClient", payload: { client: undefined } });
+      }
+    } catch (error) {
+      setAlert({
+        message: "Failed to shutdown chat",
+        type: "error",
+        context: JSON.stringify(error),
+      });
+    }
   };
 
   const selectContact = async (contactSelected: ContactInput, view?: Views) => {
@@ -423,20 +438,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
+      dispatch({
+        type: "setGoingToMessage",
+        payload: {
+          goingToMessage: {
+            index: messageIndex,
+            isGoing: true,
+          },
+        },
+      });
+
       const messagePaginator = await fetchMoreMessages(messageIndex);
       if (messagePaginator) {
         message = messagePaginator.items.find((m) => m.index === messageIndex);
 
         if (message) {
-          dispatch({
-            type: "setGoingToMessage",
-            payload: {
-              goingToMessage: {
-                index: messageIndex,
-                isGoing: true,
-              },
-            },
-          });
           setTimeout(() => {
             setAutoScroll(message!, {
               behavior: "auto",
@@ -1088,16 +1104,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const getMessagesFilteredByQuery = async (
     query: string,
     conversation: TwilioConversation,
-    lastMessageIndex?: number
+    lastMessageFoundIndex?: number
   ) => {
-    const TOTAL_MESSAGES_BY_PAGINATION = 50;
     const result: MessagePagination = {
       items: [],
       hasMore: false,
     };
+
     let messagesPaginator = await conversation.getMessages(
       100,
-      lastMessageIndex ? lastMessageIndex - 1 : undefined
+      lastMessageFoundIndex ? lastMessageFoundIndex - 1 : undefined
     );
 
     while (messagesPaginator.items.length) {
@@ -1107,23 +1123,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       for (const message of messages) {
         const messageAttribute = message.attributes as MessageAttributes;
+
+        // Filter criteria
         if (
           message.body?.toLowerCase().includes(query.toLowerCase()) ||
           messageAttribute.tags?.includes(query.toLowerCase())
         ) {
+          if (result.items.length === TOTAL_SEARCH_MESSAGES_BY_PAGINATION) {
+            result.hasMore = true;
+            break;
+          }
           result.items.push(message);
-        }
-
-        if (result.items.length >= TOTAL_MESSAGES_BY_PAGINATION) {
-          result.hasMore =
-            result.items.length > TOTAL_MESSAGES_BY_PAGINATION ||
-            messagesPaginator.hasPrevPage;
-          break;
         }
       }
 
       if (
-        result.items.length >= TOTAL_MESSAGES_BY_PAGINATION ||
+        result.items.length === TOTAL_SEARCH_MESSAGES_BY_PAGINATION ||
         !messagesPaginator.hasPrevPage
       ) {
         break;

@@ -35,3 +35,5 @@ export const CHAT_DISPATCH: ChatDispatch = {
   searchMessages: () => Promise.resolve({} as MessagePagination),
   resetSearchMessages: () => {},
 };
+
+export const TOTAL_SEARCH_MESSAGES_BY_PAGINATION = 20;

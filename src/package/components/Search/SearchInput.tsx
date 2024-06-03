@@ -4,14 +4,14 @@ import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 
-export const Search = () => {
+export const SearchInput = () => {
   const { search } = useChat();
-  const { setSearch, searchMessages, resetSearchMessages } = useChatDispatch();
-  const inputRef = useRef<string>(search.query || "");
+  const { setSearch, searchMessages } = useChatDispatch();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClickSearch = async () => {
     if (search.active) {
-      const query = inputRef.current.trim();
+      const query = inputRef.current?.value?.trim() || "";
       if (query.length > 0 && query !== search.query) {
         setSearch({
           isSearching: true,
@@ -30,7 +30,9 @@ export const Search = () => {
   };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    inputRef.current = event.target.value;
+    if (inputRef.current) {
+      inputRef.current.value = event.target.value;
+    }
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -40,18 +42,25 @@ export const Search = () => {
   };
 
   const handleResetSearch = () => {
-    resetSearchMessages();
+    setSearch({
+      query: "",
+      results: undefined,
+      isSearching: false,
+    });
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   };
 
   return (
     <>
       <TextField
+        inputRef={inputRef}
         fullWidth
         id="chat-search-messages-input"
         variant="standard"
         onChange={handleChange}
         onKeyDown={handleKeyPress}
-        defaultValue={search.query}
         label="Search by text or tag"
         InputProps={{
           endAdornment: (

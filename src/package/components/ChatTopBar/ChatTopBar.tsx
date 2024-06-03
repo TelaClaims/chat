@@ -4,7 +4,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useIsTyping } from "@/package/hooks";
 import { ConversationAttributes } from "@/package/types";
 import { IndividualConversation } from "../IndividualConversation/IndividualConversation";
-import { Search } from "../Search/Search";
+import { SearchInput } from "../Search/SearchInput";
 import SearchIcon from "@mui/icons-material/Search";
 
 export const ChatTopBar = () => {
@@ -40,7 +40,7 @@ export const ChatTopBar = () => {
       borderBottom={"1px solid #ccc"}
     >
       {search.active ? (
-        <Search />
+        <SearchInput />
       ) : (
         <>
           <IconButton onClick={handleCloseChat}>

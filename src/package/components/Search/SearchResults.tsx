@@ -11,13 +11,12 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { MessageAttributes } from "@/package/types";
+import { useInView } from "react-intersection-observer";
+import { MediaMessage } from "../Message/MediaMessage/MediaMessage";
 
 export const SearchResults = () => {
   const { search } = useChat();
   const { setSearch, goToMessage, searchMessages } = useChatDispatch();
-
-  if (!search.active) return null;
-
   const { results } = search;
 
   const handleCloseSearch = () => {
@@ -34,7 +33,6 @@ export const SearchResults = () => {
     setSearch({
       active: false,
     });
-
     goToMessage(messageIndex);
   };
 
@@ -54,18 +52,33 @@ export const SearchResults = () => {
     });
   };
 
+  const handleBottomMessageInViewPort = async (inView: boolean) => {
+    if (inView && search.results?.hasMore) {
+      fetchMoreSearchResults();
+    }
+  };
+
+  const { ref: bottomSearchMessagesRef } = useInView({
+    onChange: handleBottomMessageInViewPort,
+  });
+
   const highlightText = (text: string, highlight: string) => {
     const parts = text.split(new RegExp(`(${highlight})`, "gi"));
-    return parts.map((part, index) =>
-      part.toLowerCase() === highlight.toLowerCase() ? (
+
+    return parts.map((part, index) => {
+      const isHighlight = part.toLowerCase() === highlight.toLowerCase();
+
+      return isHighlight ? (
         <span key={index} style={{ backgroundColor: "yellow" }}>
           {part}
         </span>
       ) : (
         part
-      )
-    );
+      );
+    });
   };
+
+  if (!search.active) return null;
 
   const totalResults = results?.items?.length || 0;
 
@@ -103,6 +116,7 @@ export const SearchResults = () => {
               {results?.items!.map((result) => {
                 const resultAttributes = result.attributes as MessageAttributes;
                 const tags = resultAttributes.tags;
+                const hasMedia = result.attachedMedia?.[0];
                 return (
                   <ListItemButton
                     key={result.sid}
@@ -121,6 +135,10 @@ export const SearchResults = () => {
                       <Typography variant="subtitle1" fontWeight="bold">
                         {result.author}
                       </Typography>
+
+                      {hasMedia && (
+                        <MediaMessage media={result.attachedMedia![0]} small />
+                      )}
                       <Typography
                         variant="body2"
                         color="textSecondary"
@@ -179,12 +197,12 @@ export const SearchResults = () => {
             {/* Display fetch more messages button */}
             {results?.hasMore && (
               <Box
+                ref={bottomSearchMessagesRef}
                 display={"flex"}
                 justifyContent={"center"}
                 alignItems={"center"}
                 height={"50px"}
                 width={"100%"}
-                onClick={fetchMoreSearchResults}
               >
                 <CircularProgress color="primary" size={20} />
               </Box>

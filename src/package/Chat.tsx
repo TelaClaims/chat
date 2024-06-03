@@ -33,10 +33,11 @@ const Chat = ({
   messagesExtendedContextMenu,
 }: ChatProps) => {
   const { view } = useChat();
-  const { initializeChat, setAlert } = useChatDispatch();
+  const { initializeChat, setAlert, shutdownChat } = useChatDispatch();
 
   useEffect(() => {
     if (!contact.identity) {
+      shutdownChat();
       setAlert({
         type: "error",
         severity: "critical",

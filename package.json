@@ -15,6 +15,7 @@
     "/dist"
   ],
   "scripts": {
+    "start": "npm run build && vite preview",
     "dev": "vite",
     "build": "tsc && vite build",
     "build:package": "vite build --config vite.config.package.ts",
