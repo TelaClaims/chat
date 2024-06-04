@@ -13,7 +13,7 @@ The `Chat` component enables users to exchange messages in real-time. It serves 
 ## Installation
 
 ```bash
-npm install @telaclaims-tech/softphone
+npm install @telaclaims-tech/chat
 ```
 
 ## Requirements and Dependencies
@@ -61,7 +61,7 @@ function App() {
 
 ### `ContactInput`
 
-This type represents the input structure required for contact-related operations in the Softphone component.
+This type represents the input structure required for contact-related operations in the Chat component.
 
 ```typescript
 type ContactInput = ContactConstructorArgs | Contact;
