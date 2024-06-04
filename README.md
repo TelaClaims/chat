@@ -179,6 +179,7 @@ This type represents the handlers for the Chat component.
 ```typescript
 type Handlers = {
   onLookupContact?: (contactToLookup: string) => Promise<ContactInput[]>;
+  onRenderContact?: (contact: ContactInput) => React.ReactNode | undefined;
   onClickTag?: (tag: string, message: Message) => void;
 };
 ```
@@ -186,6 +187,8 @@ type Handlers = {
 **Properties:**
 
 - **`onLookupContact`** _`(optional)`_: Looks up a contact by the given identity. This function is called when the user type for a contact in the search contact input. Provide the input typed by the user and return the contacts that match the input.
+
+- **`onRenderContact`** _`(optional)`_: Renders the contact in the chat. This function is called when the contact is rendered in the chat. Provide the contact to render and return the React node to render the contact.
 
 - **`onClickTag`** _`(optional)`_: Handles the click event on a tag in the message. This function is called when the user clicks on a tag in the message. Provide the tag clicked and the message where the tag is located.
 
