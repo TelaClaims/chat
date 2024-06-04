@@ -34,7 +34,7 @@ export const useLastMessageRead = (conversation: ActiveConversation) => {
 
       if (
         messageIndex >
-        conversation.messages[conversation.messages.length - 1].index
+        conversation.messages[conversation.messages.length - 1]?.index
       ) {
         readMessage = conversation.messages[conversation.messages.length - 1];
       } else {

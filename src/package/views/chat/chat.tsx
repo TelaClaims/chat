@@ -186,7 +186,10 @@ const ChatView = ({ onClickTag }: Props) => {
   const showAlertMessage =
     !messagesEndInViewPort && newMessagesCount > 0 && !search.active;
   const showAlertMessageScrollToBottom =
-    !messagesEndInViewPort && !selectedMessage && !search.active;
+    Boolean(messages?.length) &&
+    !messagesEndInViewPort &&
+    !selectedMessage &&
+    !search.active;
 
   return (
     <Stack>
