@@ -1,7 +1,6 @@
 export { type ContactInput, Contact, type MessageAttributes } from "./types";
 
-//   import { LookupInput, ActionButton, ContactUI } from "./components";
-
+export { utils } from "./utils/index";
 export { useChat } from "./useChat";
 export { default as Chat } from "./Chat";
 export { default as ChatProvider } from "./context/Chat/ChatProvider";
