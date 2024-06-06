@@ -104,6 +104,7 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
         search: action.payload.search as InitialState["search"],
       };
     }
+
     default: {
       throw Error("Unknown action: " + action.type);
     }
@@ -517,6 +518,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       const conversations = await fetchConversations();
 
+      console.log("initialized", { conversations });
+
       dispatch({
         type: "setConversations",
         payload: {
@@ -604,9 +607,52 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "Conversation removed", { conversation });
     });
 
-    client.on("conversationUpdated", ({ conversation, updateReasons }) => {
-      log("log", "Conversation updated", { conversation, updateReasons });
-    });
+    client.on(
+      "conversationUpdated",
+      async ({ conversation, updateReasons }) => {
+        log("log", "Conversation updated", { conversation, updateReasons });
+
+        if (updateReasons.includes("lastReadMessageIndex")) {
+          const newMessagesCount =
+            (await conversation.getUnreadMessagesCount()) || 0;
+          console.log("lastReadMessageIndex", {
+            conversation,
+            newMessagesCount,
+          });
+
+          // update unreadMessagesCount on ActiveConversation
+          dispatch({
+            type: "setActiveConversation",
+            payload: {
+              activeConversation: {
+                ...chatRef.current.activeConversation!,
+                unreadMessagesCount: newMessagesCount,
+              },
+            },
+          });
+
+          // update unreadMessagesCount on conversation
+          const { conversations = [] } = chatRef.current;
+          const updatedConversations = conversations.map((c) => {
+            if (c.conversation.sid === conversation.sid) {
+              return {
+                ...c,
+                unreadMessagesCount: newMessagesCount,
+              };
+            }
+            return c;
+          });
+
+          dispatch({
+            type: "setConversations",
+            payload: {
+              conversations: updatedConversations,
+            },
+          });
+        }
+      }
+    );
+
     //#endregion
 
     //#region Message Events
@@ -628,9 +674,24 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               activeConversation: {
                 ...activeConversation,
                 messages: [...activeConversation.messages, message],
+                unreadMessagesCount: activeConversation.unreadMessagesCount + 1,
               },
             },
           });
+        } else {
+          // update unreadMessagesCount on ActiveConversation
+          if (message.author !== client?.user.identity) {
+            dispatch({
+              type: "setActiveConversation",
+              payload: {
+                activeConversation: {
+                  ...activeConversation,
+                  unreadMessagesCount:
+                    activeConversation.unreadMessagesCount + 1,
+                },
+              },
+            });
+          }
         }
       }
 
@@ -639,6 +700,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         conversationMessage,
         conversations
       );
+
+      // update unreadMessagesCount on conversation
+      if (message.author !== client?.user.identity) {
+        for (const conversation of updatedConversations) {
+          if (conversation.conversation.sid === conversationMessage.sid) {
+            conversation.unreadMessagesCount += 1;
+            break;
+          }
+        }
+      }
+
+      // const conversationsWithNewMessages: ConversationWithNewMessages[] = [];
+      // updatedConversations.forEach((conversation) => {
+      //   if (conversation.unreadMessagesCount) {
+      //     conversationsWithNewMessages.push({
+      //       sid: conversation.conversation.sid,
+      //       newMessagesCount: conversation.unreadMessagesCount,
+      //     });
+      //   }
+      // });
 
       dispatch({
         type: "setConversations",
@@ -841,6 +922,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       autoScroll,
       messagesPaginator,
       type,
+      unreadMessagesCount,
     } = await fetchActiveConversation(conversationSid);
 
     dispatch({
@@ -856,6 +938,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           autoScroll,
           messagesPaginator,
           type,
+          unreadMessagesCount,
         },
       },
     });
@@ -910,6 +993,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return await participant.getUser();
       })
     );
+    const unreadMessagesCount =
+      (await conversation.getUnreadMessagesCount()) || 0;
 
     return {
       conversation,
@@ -917,6 +1002,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       partyParticipants,
       partyUsers,
       type: getConversationType(conversation),
+      unreadMessagesCount,
     };
   };
 
@@ -974,8 +1060,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Conversation not found");
     }
 
-    const { participants, partyParticipants, partyUsers, type } =
-      await fetchConversation(conversation);
+    const {
+      participants,
+      partyParticipants,
+      partyUsers,
+      type,
+      unreadMessagesCount,
+    } = await fetchConversation(conversation);
 
     let messagesPaginator: Paginator<Message>;
     let messages: Message[] = [];
@@ -983,8 +1074,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       message: Message;
       scrollOptions?: ScrollIntoViewOptions;
     };
-
-    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
 
     if (unreadMessagesCount === 0) {
       messagesPaginator = await getMessagePaginator(conversation);
@@ -1025,6 +1114,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       autoScroll,
       messagesPaginator,
       type,
+      unreadMessagesCount,
     };
   };
 

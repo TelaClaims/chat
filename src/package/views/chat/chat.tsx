@@ -12,10 +12,7 @@ import {
   MessageUI,
   SearchResults,
 } from "@/package/components";
-import {
-  useLastMessageRead,
-  useOnUpdateNewMessagesCount,
-} from "@/package/hooks";
+import { useLastMessageRead } from "@/package/hooks";
 import { Message } from "@twilio/conversations";
 import { useInView } from "react-intersection-observer";
 import { scrollStyles } from "@/package/utils";
@@ -34,8 +31,13 @@ const ChatView = ({ onClickTag }: Props) => {
     getContext,
     selectMessage,
   } = useChatDispatch();
-  const { loading, conversation, autoScroll, messagesPaginator, messages } =
-    activeConversation || {};
+  const {
+    loading,
+    autoScroll,
+    messagesPaginator,
+    messages,
+    unreadMessagesCount,
+  } = activeConversation || { unreadMessagesCount: 0 };
 
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Refs for each message
 
@@ -45,7 +47,8 @@ const ChatView = ({ onClickTag }: Props) => {
   );
 
   // get the new messages count (use it to show the alert message and display the number of new messages)
-  const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation!);
+  // const { newMessagesCount } = useOnUpdateNewMessagesCount(conversation!);
+  // const newMessagesCount = unreadMessagesCount;
 
   const TOP_MESSAGE_IN_VIEW_PORT_INDEX = Math.floor(messages!.length * 0.1);
   const handleTopMessageInViewPort = async (inView: boolean) => {
@@ -164,11 +167,11 @@ const ChatView = ({ onClickTag }: Props) => {
 
   // scroll to the last message when new messages are added and the last message is in the viewport
   useEffect(() => {
-    if (messagesEndInViewPort && newMessagesCount > 0) {
+    if (messagesEndInViewPort && unreadMessagesCount > 0) {
       goToLastMessage();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesEndInViewPort, newMessagesCount]);
+  }, [messagesEndInViewPort, unreadMessagesCount]);
 
   if (loading) {
     return (
@@ -184,7 +187,7 @@ const ChatView = ({ onClickTag }: Props) => {
   }
 
   const showAlertMessage =
-    !messagesEndInViewPort && newMessagesCount > 0 && !search.active;
+    !messagesEndInViewPort && unreadMessagesCount > 0 && !search.active;
   const showAlertMessageScrollToBottom =
     Boolean(messages?.length) &&
     !messagesEndInViewPort &&
@@ -287,7 +290,7 @@ const ChatView = ({ onClickTag }: Props) => {
         />
         <MessageAlert
           show={showAlertMessage}
-          text={`New messages: ${newMessagesCount}`}
+          text={`New messages: ${unreadMessagesCount}`}
           color="info"
           onClickAlert={goToLastReadMessage}
         />

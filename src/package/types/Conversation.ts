@@ -12,6 +12,7 @@ export type Conversation = {
   partyParticipants: Participant[];
   partyUsers: User[];
   type: "individual" | "group";
+  unreadMessagesCount: number;
 };
 
 export interface ActiveConversation extends Conversation {
@@ -23,3 +24,8 @@ export interface ActiveConversation extends Conversation {
   messages: Message[];
   messagesPaginator?: Paginator<Message>;
 }
+
+export type ConversationWithNewMessages = {
+  sid: string;
+  newMessagesCount: number;
+};

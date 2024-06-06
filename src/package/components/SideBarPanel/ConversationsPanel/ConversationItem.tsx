@@ -1,4 +1,4 @@
-import { useOnUpdateNewMessagesCount } from "@/package/hooks";
+// import { useOnUpdateNewMessagesCount } from "@/package/hooks";
 import { Conversation } from "@/package/types";
 import { Badge, Box, ListItemButton, Typography } from "@mui/material";
 import { IndividualConversation } from "../../IndividualConversation/IndividualConversation";
@@ -15,9 +15,15 @@ export const ConversationItem = ({
 }: Props) => {
   const { open } = useSideBar();
 
-  const { conversation: twilioConversation, type, partyUsers } = conversation;
+  const {
+    conversation: twilioConversation,
+    type,
+    partyUsers,
+    unreadMessagesCount,
+  } = conversation;
 
-  const { newMessagesCount } = useOnUpdateNewMessagesCount(twilioConversation);
+  // const { newMessagesCount } = useOnUpdateNewMessagesCount(twilioConversation);
+  const newMessagesCount = unreadMessagesCount;
 
   const handleClickConversation = (
     event: React.MouseEvent<HTMLDivElement, MouseEvent>
