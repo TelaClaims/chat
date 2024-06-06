@@ -518,8 +518,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       const conversations = await fetchConversations();
 
-      console.log("initialized", { conversations });
-
       dispatch({
         type: "setConversations",
         payload: {
@@ -579,24 +577,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Conversation Events
     client.on("conversationJoined", (conversation) => {
       log("log", "Conversation joined", { conversation });
-      // dispatch({
-      //   type: "setConversations",
-      //   payload: {
-      //     conversations: [...chatRef.current.conversations, conversation],
-      //   },
-      // });
     });
 
     client.on("conversationLeft", (conversation) => {
       log("log", "Conversation left", { conversation });
-      // dispatch({
-      //   type: "setConversations",
-      //   payload: {
-      //     conversations: [
-      //       ...chat.conversations.filter((c) => c !== conversation),
-      //     ],
-      //   },
-      // });
     });
 
     client.on("conversationAdded", (conversation) => {
@@ -613,14 +597,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         log("log", "Conversation updated", { conversation, updateReasons });
 
         if (updateReasons.includes("lastReadMessageIndex")) {
-          const newMessagesCount =
-            (await conversation.getUnreadMessagesCount()) || 0;
-          console.log("lastReadMessageIndex", {
-            conversation,
-            newMessagesCount,
-          });
+          const {
+            lastMessage: lastConversationMessage,
+            lastReadMessageIndex: lastMessageReadByUserIndex,
+          } = conversation || {};
 
-          // update unreadMessagesCount on ActiveConversation
+          const newMessagesCount =
+            lastConversationMessage?.index !== undefined &&
+            lastMessageReadByUserIndex !== null
+              ? lastConversationMessage.index - lastMessageReadByUserIndex
+              : 0;
+
           dispatch({
             type: "setActiveConversation",
             payload: {
@@ -631,7 +618,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             },
           });
 
-          // update unreadMessagesCount on conversation
           const { conversations = [] } = chatRef.current;
           const updatedConversations = conversations.map((c) => {
             if (c.conversation.sid === conversation.sid) {
@@ -662,39 +648,36 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const { activeConversation, conversations = [] } = chatRef.current;
       const { conversation: conversationMessage } = message;
 
-      // update the active conversation with the new message
+      // update the active conversation
       if (activeConversation?.conversation.sid === conversationMessage.sid) {
         const { messagesPaginator } = activeConversation || {};
 
+        const updatedActiveConversation = {
+          ...activeConversation,
+        };
+
         // Add message only if the paginator is in the last page
         if (!messagesPaginator?.hasNextPage) {
-          dispatch({
-            type: "setActiveConversation",
-            payload: {
-              activeConversation: {
-                ...activeConversation,
-                messages: [...activeConversation.messages, message],
-                unreadMessagesCount: activeConversation.unreadMessagesCount + 1,
-              },
-            },
-          });
-        } else {
-          // update unreadMessagesCount on ActiveConversation
-          if (message.author !== client?.user.identity) {
-            dispatch({
-              type: "setActiveConversation",
-              payload: {
-                activeConversation: {
-                  ...activeConversation,
-                  unreadMessagesCount:
-                    activeConversation.unreadMessagesCount + 1,
-                },
-              },
-            });
-          }
+          updatedActiveConversation.messages = [
+            ...activeConversation.messages,
+            message,
+          ];
         }
+
+        // update unreadMessagesCount on ActiveConversation only if the message is not from the current user
+        if (message.author !== client?.user.identity) {
+          updatedActiveConversation.unreadMessagesCount += 1;
+        }
+
+        dispatch({
+          type: "setActiveConversation",
+          payload: {
+            activeConversation: updatedActiveConversation,
+          },
+        });
       }
 
+      // update the conversations list
       // put message conversation at the top of the list of conversations
       const updatedConversations = await putUpdatedConversationAtTop(
         conversationMessage,
@@ -710,16 +693,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       }
-
-      // const conversationsWithNewMessages: ConversationWithNewMessages[] = [];
-      // updatedConversations.forEach((conversation) => {
-      //   if (conversation.unreadMessagesCount) {
-      //     conversationsWithNewMessages.push({
-      //       sid: conversation.conversation.sid,
-      //       newMessagesCount: conversation.unreadMessagesCount,
-      //     });
-      //   }
-      // });
 
       dispatch({
         type: "setConversations",
@@ -756,17 +729,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#endregion
 
     //#region Participant Events
-    client.on("participantJoined", (participant) => {
-      log("log", "Participant joined", { participant });
-    });
+    // client.on("participantJoined", (participant) => {
+    //   log("log", "Participant joined", { participant });
+    // });
 
-    client.on("participantLeft", (participant) => {
-      log("log", "Participant left", { participant });
-    });
+    // client.on("participantLeft", (participant) => {
+    //   log("log", "Participant left", { participant });
+    // });
 
-    client.on("participantUpdated", (participant) => {
-      log("log", "Participant updated", { participant });
-    });
+    // client.on("participantUpdated", (participant) => {
+    //   log("log", "Participant updated", { participant });
+    // });
     //#endregion
 
     //#region Token Events

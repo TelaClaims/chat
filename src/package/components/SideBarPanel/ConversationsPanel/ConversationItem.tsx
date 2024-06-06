@@ -1,4 +1,3 @@
-// import { useOnUpdateNewMessagesCount } from "@/package/hooks";
 import { Conversation } from "@/package/types";
 import { Badge, Box, ListItemButton, Typography } from "@mui/material";
 import { IndividualConversation } from "../../IndividualConversation/IndividualConversation";
@@ -22,7 +21,6 @@ export const ConversationItem = ({
     unreadMessagesCount,
   } = conversation;
 
-  // const { newMessagesCount } = useOnUpdateNewMessagesCount(twilioConversation);
   const newMessagesCount = unreadMessagesCount;
 
   const handleClickConversation = (

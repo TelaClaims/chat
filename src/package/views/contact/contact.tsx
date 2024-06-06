@@ -31,10 +31,7 @@ const ContactView = () => {
         justifyContent={"center"}
         alignItems={"center"}
       >
-        <ContactUI
-          contact={contactSelected}
-          // onRenderContact={onRenderContact}
-        />
+        <ContactUI contact={contactSelected} />
       </Stack.Segment>
       <Stack.Segment
         flex={0.3}

@@ -74,10 +74,10 @@ export const SearchInput = () => {
             margin: 0,
           },
           "& .MuiFormLabel-root": {
-            transform: "translate(0, 10px)", // Ajustar aquí para mover la etiqueta
+            transform: "translate(0, 10px)",
           },
           "& .MuiInputLabel-shrink": {
-            transform: "translate(0, -10px) scale(0.75)", // Ajustar aquí para mover la etiqueta cuando se reduce
+            transform: "translate(0, -10px) scale(0.75)",
           },
         }}
       />
