@@ -76,6 +76,5 @@ export const useLastMessageRead = (conversation: ActiveConversation) => {
 
   return {
     lastMessageReadByParticipants,
-    // lastMessageReadByClient
   };
 };

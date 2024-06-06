@@ -1,6 +1,7 @@
 import { ContactInput, useChat } from "@/package";
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   FormControl,
@@ -10,6 +11,7 @@ import {
   Select,
   SelectChangeEvent,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useRef } from "react";
@@ -21,7 +23,7 @@ interface Props {
 }
 
 const ControlPanel = ({ contact, handleSetContact, contactList }: Props) => {
-  const { goToMessage } = useChat();
+  const { goToMessage, countConversationsWithNewMessages } = useChat();
 
   const messageIndexToFind = useRef<HTMLInputElement>(null);
 
@@ -54,7 +56,16 @@ const ControlPanel = ({ contact, handleSetContact, contactList }: Props) => {
       }}
     >
       <Box display={"flex"} flexDirection={"column"} gap={2}>
-        <Typography variant="h4">Control Panel</Typography>
+        <Box display={"flex"} justifyContent={"space-between"}>
+          <Typography variant="h4">Control Panel</Typography>
+          <Tooltip title="Conversations with new messages">
+            <Badge
+              badgeContent={countConversationsWithNewMessages}
+              color="error"
+            />
+          </Tooltip>
+        </Box>
+
         <Box>
           <FormControl fullWidth>
             <InputLabel id="demo-simple-select-label">

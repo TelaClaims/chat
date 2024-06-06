@@ -104,6 +104,7 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
         search: action.payload.search as InitialState["search"],
       };
     }
+
     default: {
       throw Error("Unknown action: " + action.type);
     }
@@ -576,24 +577,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#region Conversation Events
     client.on("conversationJoined", (conversation) => {
       log("log", "Conversation joined", { conversation });
-      // dispatch({
-      //   type: "setConversations",
-      //   payload: {
-      //     conversations: [...chatRef.current.conversations, conversation],
-      //   },
-      // });
     });
 
     client.on("conversationLeft", (conversation) => {
       log("log", "Conversation left", { conversation });
-      // dispatch({
-      //   type: "setConversations",
-      //   payload: {
-      //     conversations: [
-      //       ...chat.conversations.filter((c) => c !== conversation),
-      //     ],
-      //   },
-      // });
     });
 
     client.on("conversationAdded", (conversation) => {
@@ -604,9 +591,54 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       log("log", "Conversation removed", { conversation });
     });
 
-    client.on("conversationUpdated", ({ conversation, updateReasons }) => {
-      log("log", "Conversation updated", { conversation, updateReasons });
-    });
+    client.on(
+      "conversationUpdated",
+      async ({ conversation, updateReasons }) => {
+        log("log", "Conversation updated", { conversation, updateReasons });
+
+        if (updateReasons.includes("lastReadMessageIndex")) {
+          const {
+            lastMessage: lastConversationMessage,
+            lastReadMessageIndex: lastMessageReadByUserIndex,
+          } = conversation || {};
+
+          const newMessagesCount =
+            lastConversationMessage?.index !== undefined &&
+            lastMessageReadByUserIndex !== null
+              ? lastConversationMessage.index - lastMessageReadByUserIndex
+              : 0;
+
+          dispatch({
+            type: "setActiveConversation",
+            payload: {
+              activeConversation: {
+                ...chatRef.current.activeConversation!,
+                unreadMessagesCount: newMessagesCount,
+              },
+            },
+          });
+
+          const { conversations = [] } = chatRef.current;
+          const updatedConversations = conversations.map((c) => {
+            if (c.conversation.sid === conversation.sid) {
+              return {
+                ...c,
+                unreadMessagesCount: newMessagesCount,
+              };
+            }
+            return c;
+          });
+
+          dispatch({
+            type: "setConversations",
+            payload: {
+              conversations: updatedConversations,
+            },
+          });
+        }
+      }
+    );
+
     //#endregion
 
     //#region Message Events
@@ -616,29 +648,51 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const { activeConversation, conversations = [] } = chatRef.current;
       const { conversation: conversationMessage } = message;
 
-      // update the active conversation with the new message
+      // update the active conversation
       if (activeConversation?.conversation.sid === conversationMessage.sid) {
         const { messagesPaginator } = activeConversation || {};
 
+        const updatedActiveConversation = {
+          ...activeConversation,
+        };
+
         // Add message only if the paginator is in the last page
         if (!messagesPaginator?.hasNextPage) {
-          dispatch({
-            type: "setActiveConversation",
-            payload: {
-              activeConversation: {
-                ...activeConversation,
-                messages: [...activeConversation.messages, message],
-              },
-            },
-          });
+          updatedActiveConversation.messages = [
+            ...activeConversation.messages,
+            message,
+          ];
         }
+
+        // update unreadMessagesCount on ActiveConversation only if the message is not from the current user
+        if (message.author !== client?.user.identity) {
+          updatedActiveConversation.unreadMessagesCount += 1;
+        }
+
+        dispatch({
+          type: "setActiveConversation",
+          payload: {
+            activeConversation: updatedActiveConversation,
+          },
+        });
       }
 
+      // update the conversations list
       // put message conversation at the top of the list of conversations
       const updatedConversations = await putUpdatedConversationAtTop(
         conversationMessage,
         conversations
       );
+
+      // update unreadMessagesCount on conversation
+      if (message.author !== client?.user.identity) {
+        for (const conversation of updatedConversations) {
+          if (conversation.conversation.sid === conversationMessage.sid) {
+            conversation.unreadMessagesCount += 1;
+            break;
+          }
+        }
+      }
 
       dispatch({
         type: "setConversations",
@@ -675,17 +729,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     //#endregion
 
     //#region Participant Events
-    client.on("participantJoined", (participant) => {
-      log("log", "Participant joined", { participant });
-    });
+    // client.on("participantJoined", (participant) => {
+    //   log("log", "Participant joined", { participant });
+    // });
 
-    client.on("participantLeft", (participant) => {
-      log("log", "Participant left", { participant });
-    });
+    // client.on("participantLeft", (participant) => {
+    //   log("log", "Participant left", { participant });
+    // });
 
-    client.on("participantUpdated", (participant) => {
-      log("log", "Participant updated", { participant });
-    });
+    // client.on("participantUpdated", (participant) => {
+    //   log("log", "Participant updated", { participant });
+    // });
     //#endregion
 
     //#region Token Events
@@ -841,6 +895,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       autoScroll,
       messagesPaginator,
       type,
+      unreadMessagesCount,
     } = await fetchActiveConversation(conversationSid);
 
     dispatch({
@@ -856,6 +911,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           autoScroll,
           messagesPaginator,
           type,
+          unreadMessagesCount,
         },
       },
     });
@@ -910,6 +966,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return await participant.getUser();
       })
     );
+    const unreadMessagesCount =
+      (await conversation.getUnreadMessagesCount()) || 0;
 
     return {
       conversation,
@@ -917,6 +975,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       partyParticipants,
       partyUsers,
       type: getConversationType(conversation),
+      unreadMessagesCount,
     };
   };
 
@@ -974,8 +1033,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Conversation not found");
     }
 
-    const { participants, partyParticipants, partyUsers, type } =
-      await fetchConversation(conversation);
+    const {
+      participants,
+      partyParticipants,
+      partyUsers,
+      type,
+      unreadMessagesCount,
+    } = await fetchConversation(conversation);
 
     let messagesPaginator: Paginator<Message>;
     let messages: Message[] = [];
@@ -983,8 +1047,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       message: Message;
       scrollOptions?: ScrollIntoViewOptions;
     };
-
-    const unreadMessagesCount = await conversation.getUnreadMessagesCount();
 
     if (unreadMessagesCount === 0) {
       messagesPaginator = await getMessagePaginator(conversation);
@@ -1025,6 +1087,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       autoScroll,
       messagesPaginator,
       type,
+      unreadMessagesCount,
     };
   };
 

@@ -13,16 +13,10 @@ export const MessageBackdrop = ({
   onClick,
   children,
 }: Props) => {
-  // const { selectedMessage, goingToMessage } = useChat();
-  // const { selectMessage } = useChatDispatch();
-
-  // if (!selectedMessage && !goingToMessage?.isGoing) return null;
-
   if (!show) return null;
 
   return (
     <Box
-      // onClick={() => selectMessage()}
       onClick={onClick}
       sx={{
         position: "absolute",
@@ -37,9 +31,6 @@ export const MessageBackdrop = ({
         alignItems: "center",
       }}
     >
-      {/* {goingToMessage?.isGoing && (
-          <CircularProgress color="primary" size={60} />
-        )} */}
       {displayLoading && <CircularProgress color="primary" size={60} />}
       {children}
     </Box>

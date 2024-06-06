@@ -101,7 +101,7 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
             bgcolor: colors.grey["100"],
 
             "& .MuiInputLabel-shrink": {
-              transform: "translate(14px, -3px) scale(0.75)", // Ajusta la posición cuando está shrink
+              transform: "translate(14px, -3px) scale(0.75)",
             },
           }}
           inputRef={messageInputRef}

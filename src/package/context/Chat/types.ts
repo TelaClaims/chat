@@ -54,7 +54,8 @@ export type ChatAction = {
     | "selectMessage"
     | "setMessagesExtendedContextMenu"
     | "setGoingToMessage"
-    | "setSearch";
+    | "setSearch"
+    | "setConversationsWithNewMessages";
   payload: Partial<InitialState>;
 };
 
