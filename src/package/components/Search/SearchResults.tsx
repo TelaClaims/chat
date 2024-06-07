@@ -15,7 +15,7 @@ import { useInView } from "react-intersection-observer";
 import { MediaMessage } from "../Message/MediaMessage/MediaMessage";
 
 export const SearchResults = () => {
-  const { search } = useChat();
+  const { search, goingToMessage } = useChat();
   const {
     setSearch,
     goToMessage,
@@ -131,7 +131,10 @@ export const SearchResults = () => {
                   <ListItemButton
                     key={result.sid}
                     sx={{
-                      bgcolor: "rgba(12, 12, 12, 0.207);",
+                      bgcolor:
+                        result.index === goingToMessage?.index
+                          ? "rgba(12, 12, 12, 0.407)"
+                          : "rgba(12, 12, 12, 0.207);",
                       display: "flex",
                       justifyContent: "space-between",
                     }}
