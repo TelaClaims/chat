@@ -34,6 +34,7 @@ export const CHAT_DISPATCH: ChatDispatch = {
   setSearch: () => {},
   searchMessages: () => Promise.resolve({} as MessagePagination),
   resetSearchMessages: () => {},
+  getContactFromActiveConversation: () => new Contact({ identity: "" }),
 };
 
 export const TOTAL_SEARCH_MESSAGES_BY_PAGINATION = 20;
