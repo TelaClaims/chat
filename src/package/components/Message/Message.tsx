@@ -1,7 +1,7 @@
 import { Message } from "@twilio/conversations";
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { Box, Chip, ListItem, Typography, colors } from "@mui/material";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMessageReadIntersection } from "./useMessageReadIntersection";
 import CheckIcon from "@mui/icons-material/Check";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
@@ -23,7 +23,7 @@ interface Props {
 
 export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
   const { contact, messagesExtendedContextMenu, goingToMessage } = useChat();
-  const { selectMessage } = useChatDispatch();
+  const { selectMessage, getContactFromActiveConversation } = useChatDispatch();
   const [showMenu, setShowMenu] = useState(false);
   const messageRef = useRef(null);
   useMessageReadIntersection({ message, ref: messageRef });
@@ -55,6 +55,12 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
 
   const messageAttributes = message.attributes as MessageAttributes;
   const { tags } = messageAttributes;
+
+  const authorContact = useMemo(
+    () => getContactFromActiveConversation(message.author || ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [message.author]
+  );
 
   return (
     <ListItem
@@ -114,7 +120,7 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
             fontSize={14}
             color={colors.grey[800]}
           >
-            {message.author}
+            {authorContact.label}
           </Typography>
         )}
 

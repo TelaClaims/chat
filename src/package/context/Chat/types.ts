@@ -91,4 +91,5 @@ export type ChatDispatch = {
     lastMessageIndex?: number;
   }) => Promise<MessagePagination>;
   resetSearchMessages: () => void;
+  getContactFromActiveConversation: (identity: string) => Contact;
 };

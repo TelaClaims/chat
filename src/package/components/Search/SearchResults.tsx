@@ -16,7 +16,12 @@ import { MediaMessage } from "../Message/MediaMessage/MediaMessage";
 
 export const SearchResults = () => {
   const { search } = useChat();
-  const { setSearch, goToMessage, searchMessages } = useChatDispatch();
+  const {
+    setSearch,
+    goToMessage,
+    searchMessages,
+    getContactFromActiveConversation,
+  } = useChatDispatch();
   const { results } = search;
 
   const handleCloseSearch = () => {
@@ -69,9 +74,9 @@ export const SearchResults = () => {
       const isHighlight = part.toLowerCase() === highlight.toLowerCase();
 
       return isHighlight ? (
-        <span key={index} style={{ backgroundColor: "yellow" }}>
+        <Box component={"span"} key={index} sx={{ backgroundColor: "yellow" }}>
           {part}
-        </span>
+        </Box>
       ) : (
         part
       );
@@ -117,6 +122,11 @@ export const SearchResults = () => {
                 const resultAttributes = result.attributes as MessageAttributes;
                 const tags = resultAttributes.tags;
                 const hasMedia = result.attachedMedia?.[0];
+
+                const authorContact = getContactFromActiveConversation(
+                  result.author || ""
+                );
+
                 return (
                   <ListItemButton
                     key={result.sid}
@@ -133,7 +143,7 @@ export const SearchResults = () => {
                       width={"75%"}
                     >
                       <Typography variant="subtitle1" fontWeight="bold">
-                        {result.author}
+                        {authorContact.label}
                       </Typography>
 
                       {hasMedia && (

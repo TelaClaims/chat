@@ -27,7 +27,7 @@ import {
   UserAttributes,
   defaultChatSettings,
 } from "@/package/types";
-import { getConversationType, log } from "@/package/utils";
+import { getContact, getConversationType, log } from "@/package/utils";
 import { SideBarProvider } from "../SideBarPanel/SideBarProvider";
 
 function chatReducer(state: InitialState, action: ChatAction): InitialState {
@@ -1212,6 +1212,32 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return result;
   };
 
+  const getContactFromActiveConversation = (identity: string): Contact => {
+    if (!identity) {
+      return new Contact({
+        identity: "unknown",
+        type: "identifier",
+      });
+    }
+
+    if (identity === chatRef.current.contact.identity) {
+      return chatRef.current.contact;
+    }
+
+    const { partyUsers } = chatRef.current.activeConversation!;
+
+    const authorUser = partyUsers.find((user) => user.identity === identity);
+
+    if (!authorUser) {
+      return new Contact({
+        identity,
+        type: "identifier",
+      });
+    }
+
+    return getContact(authorUser);
+  };
+
   //#endregion
 
   return (
@@ -1236,6 +1262,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             setSearch,
             searchMessages,
             resetSearchMessages,
+            getContactFromActiveConversation,
           }}
         >
           {children}

@@ -28,7 +28,7 @@ function App() {
     const response = await fetch(
       `${
         import.meta.env.CHAT_TWILIO_FUNCTIONS_DOMAIN
-      }/chat/token?identity=${identity}`
+      }/token?identity=${identity}`
     );
     const { data } = await response.json();
     return data.token;
