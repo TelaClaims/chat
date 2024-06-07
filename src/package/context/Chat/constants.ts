@@ -31,6 +31,7 @@ export const CHAT_DISPATCH: ChatDispatch = {
   getContext: () => INITIAL_STATE,
   clearMessageToInitialScrollTo: () => {},
   goToMessage: () => {},
+  clearGoingToMessage: () => {},
   setSearch: () => {},
   searchMessages: () => Promise.resolve({} as MessagePagination),
   resetSearchMessages: () => {},

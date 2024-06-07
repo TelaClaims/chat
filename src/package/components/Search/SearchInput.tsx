@@ -6,7 +6,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 export const SearchInput = () => {
   const { search } = useChat();
-  const { setSearch, searchMessages } = useChatDispatch();
+  const { setSearch, searchMessages, clearGoingToMessage } = useChatDispatch();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClickSearch = async () => {
@@ -47,6 +47,7 @@ export const SearchInput = () => {
       results: undefined,
       isSearching: false,
     });
+    clearGoingToMessage();
     if (inputRef.current) {
       inputRef.current.value = "";
     }
@@ -56,6 +57,7 @@ export const SearchInput = () => {
     <>
       <TextField
         inputRef={inputRef}
+        defaultValue={search.query}
         fullWidth
         id="chat-search-messages-input"
         variant="standard"

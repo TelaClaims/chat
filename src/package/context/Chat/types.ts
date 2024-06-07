@@ -81,6 +81,7 @@ export type ChatDispatch = {
   ) => void;
   clearMessageToInitialScrollTo: () => void;
   goToMessage: (index: number) => void;
+  clearGoingToMessage: () => void;
   getContext: () => InitialState;
   setSearch: (searchState: InitialState["search"]) => void;
   searchMessages: ({

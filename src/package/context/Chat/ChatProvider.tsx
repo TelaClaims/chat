@@ -480,6 +480,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const clearGoingToMessage = () => {
+    dispatch({
+      type: "setGoingToMessage",
+      payload: {
+        goingToMessage: {
+          index: 0,
+          isGoing: false,
+        },
+      },
+    });
+  };
+
   const setSearch = (searchState: InitialState["search"]) => {
     const currentSearch = chatRef.current.search;
     dispatch({
@@ -1258,6 +1270,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             setAutoScroll,
             clearMessageToInitialScrollTo,
             goToMessage,
+            clearGoingToMessage,
             getContext,
             setSearch,
             searchMessages,
