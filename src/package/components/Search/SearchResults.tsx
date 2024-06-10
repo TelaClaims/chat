@@ -13,6 +13,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { MessageAttributes } from "@/package/types";
 import { useInView } from "react-intersection-observer";
 import { MediaMessage } from "../Message/MediaMessage/MediaMessage";
+import { TextWithEmojis } from "@/package/utils";
 
 export const SearchResults = () => {
   const { search, goingToMessage } = useChat();
@@ -75,10 +76,12 @@ export const SearchResults = () => {
 
       return isHighlight ? (
         <Box component={"span"} key={index} sx={{ backgroundColor: "yellow" }}>
-          {part}
+          <TextWithEmojis text={part} />
         </Box>
       ) : (
-        part
+        <span key={`${index}-${part}`}>
+          <TextWithEmojis text={part} />
+        </span>
       );
     });
   };

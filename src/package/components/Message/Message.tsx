@@ -14,6 +14,7 @@ import {
   Handlers,
   MessageAttributes,
 } from "@/package/types";
+import { BodyMessage } from "./BodyMessage/BodyMessage";
 
 interface Props {
   message: Message;
@@ -128,15 +129,7 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
         {message.attachedMedia?.[0] && (
           <MediaMessage media={message.attachedMedia[0]} />
         )}
-        <Typography
-          variant={"body2"}
-          sx={{
-            overflowWrap: "break-word",
-          }}
-        >
-          {/* {message.index} */}
-          {message.body}
-        </Typography>
+        {message.body && <BodyMessage body={message.body} />}
 
         {/* Time and read status section */}
         <Box
