@@ -12,7 +12,8 @@ import { useChat, useChatDispatch } from "@/package/context/Chat/context";
 import { MessageSelectedPlaceHolder } from "../MessageSelectedPlaceHolder/MessageSelectedPlaceHolder";
 import { SendMediaButton } from "../SendMediaButton/SendMediaButton";
 import InsertEmoticonIcon from "@mui/icons-material/InsertEmoticon";
-import EmojiPicker from "emoji-picker-react";
+import { EmojiPickerContainer } from "../EmojiPickerContainer/EmojiPickerContainer";
+import { EmojiClickData } from "emoji-picker-react";
 
 interface Props {
   goToLastMessage: () => void;
@@ -84,10 +85,18 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
     }
   };
 
+  const toggleEmojiPicker = () => {
+    setIsEmojiPickerOpen(!isEmojiPickerOpen);
+  };
+
   const hideEmojiPicker = () => {
     if (isEmojiPickerOpen) {
       setIsEmojiPickerOpen(false);
     }
+  };
+
+  const handleOnEmojiClick = (emojiObject: EmojiClickData) => {
+    messageInputRef.current!.value += emojiObject.emoji;
   };
 
   useEffect(() => {
@@ -110,31 +119,10 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
           onClose={selectMessage}
         />
       )}
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: 55,
-          right: 0,
-          left: 0,
-          maxHeight: isEmojiPickerOpen ? "370px" : "0px",
-          overflow: "hidden",
-          transition: "max-height 0.2s ease",
-          "& .EmojiPickerReact": {
-            "--epr-emoji-size": "1.3rem",
-          },
-        }}
-      >
-        <EmojiPicker
-          onEmojiClick={(emojiObject) => {
-            messageInputRef.current!.value += emojiObject.emoji;
-          }}
-          skinTonesDisabled
-          lazyLoadEmojis
-          height={"370px"}
-          width="100%"
-          previewConfig={{ showPreview: false }}
-        />
-      </Box>
+      <EmojiPickerContainer
+        isOpen={isEmojiPickerOpen}
+        onEmojiClick={handleOnEmojiClick}
+      />
       <Box display={"flex"}>
         <SendMediaButton onSelectedFile={handleSendMediaMessage} />
         <TextField
@@ -163,7 +151,7 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
                 <Box display={"flex"} alignItems={"center"}>
                   <IconButton
                     color={isEmojiPickerOpen ? "primary" : "default"}
-                    onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                    onClick={toggleEmojiPicker}
                   >
                     <InsertEmoticonIcon />
                   </IconButton>

@@ -21,3 +21,4 @@ export { IndividualConversation } from "./IndividualConversation/IndividualConve
 export { SendMediaButton } from "./SendMediaButton/SendMediaButton";
 export { SearchInput } from "./Search/SearchInput";
 export { SearchResults } from "./Search/SearchResults";
+export { EmojiPickerContainer } from "./EmojiPickerContainer/EmojiPickerContainer";
