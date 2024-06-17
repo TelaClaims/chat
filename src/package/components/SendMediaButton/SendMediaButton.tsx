@@ -31,6 +31,7 @@ export const SendMediaButton = ({ onSelectedFile }: Props) => {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = event.target.files;
+
     if (files && files.length > 0) {
       const file = files[0];
 
@@ -41,6 +42,9 @@ export const SendMediaButton = ({ onSelectedFile }: Props) => {
           message: "Invalid file type. Please select an image file.",
           type: "error",
         });
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     }
   };
