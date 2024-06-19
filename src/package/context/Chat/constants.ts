@@ -14,6 +14,10 @@ export const INITIAL_STATE: InitialState = {
       hasMore: false,
     },
   },
+  selectionMode: {
+    active: false,
+    selectedMessages: [],
+  },
 };
 
 export const CHAT_DISPATCH: ChatDispatch = {
@@ -36,6 +40,10 @@ export const CHAT_DISPATCH: ChatDispatch = {
   searchMessages: () => Promise.resolve({} as MessagePagination),
   resetSearchMessages: () => {},
   getContactFromActiveConversation: () => new Contact({ identity: "" }),
+  deleteSelectedMessages: () => Promise.resolve(undefined),
+  setSelectionMode: () => {},
+  resetSelectionMode: () => {},
+  getBulkMessages: () => Promise.resolve([]),
 };
 
 export const TOTAL_SEARCH_MESSAGES_BY_PAGINATION = 20;

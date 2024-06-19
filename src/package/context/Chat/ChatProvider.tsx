@@ -22,6 +22,7 @@ import {
   ContextMenuItem,
   Conversation,
   ConversationAttributes,
+  DefaultContextMenuOptions,
   MessageAttributes,
   MessagePagination,
   UserAttributes,
@@ -102,6 +103,13 @@ function chatReducer(state: InitialState, action: ChatAction): InitialState {
       return {
         ...state,
         search: action.payload.search as InitialState["search"],
+      };
+    }
+    case "setSelectionMode": {
+      return {
+        ...state,
+        selectionMode: action.payload
+          .selectionMode as InitialState["selectionMode"],
       };
     }
 
@@ -310,7 +318,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const selectMessage = (
     message?: Message,
-    reason?: "copy" | "edit" | "delete"
+    reason?: DefaultContextMenuOptions
   ) => {
     if (!reason || !message) {
       dispatch({
@@ -321,6 +329,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
       return;
     }
+
+    if (reason === "select") {
+      setSelectionMode({
+        active: true,
+        selectedMessages: [message],
+      });
+    }
+
     if (reason === "edit") {
       if (message.body?.trim() === "") {
         return;
@@ -509,6 +525,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         hasMore: false,
       },
       isSearching: false,
+    });
+  };
+
+  const setSelectionMode = (
+    selectionModeState: InitialState["selectionMode"]
+  ) => {
+    dispatch({
+      type: "setSelectionMode",
+      payload: { selectionMode: { ...selectionModeState } },
+    });
+  };
+
+  const resetSelectionMode = () => {
+    setSelectionMode({
+      active: false,
+      selectedMessages: [],
     });
   };
   //#endregion
@@ -928,6 +960,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       },
     });
 
+    resetSelectionMode();
     resetSearchMessages();
   };
 
@@ -1250,6 +1283,72 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return getContact(authorUser);
   };
 
+  const deleteSelectedMessages = async () => {
+    const { selectedMessages } = chatRef.current.selectionMode;
+
+    if (!selectedMessages.length) {
+      return;
+    }
+
+    try {
+      const selectedMessagesToDelete = selectedMessages.filter(
+        (message) => message.author === chatRef.current.contact.identity
+      );
+
+      await Promise.all(
+        selectedMessagesToDelete.map(async (message) => {
+          await message.remove();
+        })
+      );
+
+      setAlert({
+        message: "Messages deleted successfully",
+        type: "info",
+      });
+
+      return selectedMessagesToDelete.length;
+    } catch (error) {
+      setAlert({
+        message: "Failed to delete messages",
+        type: "error",
+        context: JSON.stringify(error),
+      });
+    }
+  };
+
+  const getBulkMessages = async (
+    conversation: TwilioConversation,
+    indexFrom: number,
+    indexTo: number
+  ) => {
+    const result: Message[] = [];
+    let messagePaginator;
+    let currentIndex = indexFrom;
+
+    do {
+      messagePaginator = await conversation.getMessages(
+        100,
+        currentIndex,
+        "forward"
+      );
+
+      messagePaginator.items.forEach((message: Message) => {
+        if (message.index <= indexTo) {
+          result.push(message);
+        }
+      });
+
+      if (messagePaginator.hasNextPage) {
+        currentIndex =
+          messagePaginator.items[messagePaginator.items.length - 1].index + 1;
+      }
+
+      if (result.length > 0 && result[result.length - 1].index === indexTo) {
+        break;
+      }
+    } while (messagePaginator.hasNextPage);
+    return result;
+  };
   //#endregion
 
   return (
@@ -1276,6 +1375,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             searchMessages,
             resetSearchMessages,
             getContactFromActiveConversation,
+            setSelectionMode,
+            resetSelectionMode,
+            deleteSelectedMessages,
+            getBulkMessages,
           }}
         >
           {children}

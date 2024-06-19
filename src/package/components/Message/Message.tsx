@@ -8,6 +8,8 @@ import DoneAllIcon from "@mui/icons-material/DoneAll";
 import { MessageMenu } from "../MessageMenu/MessageMenu";
 import { useOnMessageUpdated } from "@/package/hooks";
 import { MediaMessage } from "./MediaMessage/MediaMessage";
+import { SelectionMessageButton } from "../SelectionMessageButton/SelectionMessageButton";
+
 import {
   ContextMenuItem,
   DefaultContextMenuOptions,
@@ -23,8 +25,13 @@ interface Props {
 }
 
 export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
-  const { contact, messagesExtendedContextMenu, goingToMessage } = useChat();
   const { selectMessage, getContactFromActiveConversation } = useChatDispatch();
+  const {
+    selectionMode,
+    contact,
+    messagesExtendedContextMenu,
+    goingToMessage,
+  } = useChat();
   const [showMenu, setShowMenu] = useState(false);
   const messageRef = useRef(null);
   useMessageReadIntersection({ message, ref: messageRef });
@@ -80,6 +87,21 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
             : "transparent",
       }}
     >
+      {/* Selection section */}
+      {selectionMode.active && (
+        <Box
+          position={"absolute"}
+          right={direction === "outgoing" ? 10 : "auto"}
+          left={direction === "incoming" ? 10 : "auto"}
+          display={"flex"}
+          alignItems={"center"}
+          justifyContent={"center"}
+          width={10}
+          height={10}
+        >
+          <SelectionMessageButton message={message} />
+        </Box>
+      )}
       <Box
         maxWidth={"80%"}
         bgcolor={direction === "incoming" ? colors.grey[300] : colors.green[50]}
@@ -94,7 +116,7 @@ export const MessageUI = ({ message, isRead, onClickTag }: Props) => {
         }}
       >
         {/* Menu section */}
-        {showMenu && (
+        {showMenu && !selectionMode.active && (
           <Box
             display={"flex"}
             justifyContent={

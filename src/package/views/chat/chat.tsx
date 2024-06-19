@@ -281,7 +281,7 @@ const ChatView = ({ onClickTag }: Props) => {
       </Stack.Segment>
 
       {/* Chat Input Tools */}
-      <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]} zIndex={1}>
+      <Stack.Segment flex={0.1} bgcolor={colors.grey["100"]}>
         <MessageAlertScrollToBottom
           show={showAlertMessageScrollToBottom}
           onClick={goToLastMessage}

@@ -5,9 +5,15 @@ import {
   ContactInput,
   ContextMenuItem,
   Conversation,
+  DefaultContextMenuOptions,
   MessagePagination,
 } from "@/package/types";
-import { Client, Message, Paginator } from "@twilio/conversations";
+import {
+  Client,
+  Message,
+  Paginator,
+  Conversation as TwilioConversation,
+} from "@twilio/conversations";
 
 export type Views = "inactive" | "active" | "lookup" | "contact" | "on-chat";
 
@@ -39,6 +45,10 @@ export type InitialState = {
     results?: MessagePagination;
     isSearching?: boolean;
   };
+  selectionMode: {
+    active?: boolean;
+    selectedMessages: Message[];
+  };
 };
 
 export type ChatAction = {
@@ -55,7 +65,8 @@ export type ChatAction = {
     | "setMessagesExtendedContextMenu"
     | "setGoingToMessage"
     | "setSearch"
-    | "setConversationsWithNewMessages";
+    | "setConversationsWithNewMessages"
+    | "setSelectionMode";
   payload: Partial<InitialState>;
 };
 
@@ -70,7 +81,7 @@ export type ChatDispatch = {
   startConversation: (contact: Contact) => Promise<void>;
   selectMessage: (
     message?: Message,
-    reason?: "copy" | "edit" | "delete"
+    reason?: DefaultContextMenuOptions
   ) => void;
   fetchMoreMessages: (
     anchorMessageIndex: number
@@ -93,4 +104,12 @@ export type ChatDispatch = {
   }) => Promise<MessagePagination>;
   resetSearchMessages: () => void;
   getContactFromActiveConversation: (identity: string) => Contact;
+  setSelectionMode: (selectionModeState: InitialState["selectionMode"]) => void;
+  resetSelectionMode: () => void;
+  deleteSelectedMessages: () => Promise<number | undefined>;
+  getBulkMessages: (
+    conversation: TwilioConversation,
+    indexFrom: number,
+    indexTo: number
+  ) => Promise<Message[]>;
 };

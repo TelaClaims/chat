@@ -15,10 +15,11 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import SelectAllIcon from "@mui/icons-material/SelectAll";
 import { ContextMenuItem, DefaultContextMenuOptions } from "@/package/types";
 
 interface Props {
-  onClickOption: (reason: "copy" | "edit" | "delete") => void;
+  onClickOption: (reason: DefaultContextMenuOptions) => void;
   onClickExtendedOption: (extendedOption: ContextMenuItem) => void;
   hiddenOptions?: DefaultContextMenuOptions[];
   extendedContextMenu?: ContextMenuItem[];
@@ -53,13 +54,13 @@ export const MessageMenu = ({
 
   const handleClickOption = (
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    reason: "edit"
+    reason: "edit" | "select"
   ) => {
     event.preventDefault();
     onClickOption(reason);
   };
 
-  const handleClickOptionMenu = (reason: "copy" | "edit" | "delete") => {
+  const handleClickOptionMenu = (reason: DefaultContextMenuOptions) => {
     onClickOption(reason);
   };
 
@@ -80,6 +81,16 @@ export const MessageMenu = ({
         opacity: 0.8,
       }}
     >
+      <Tooltip title="Select" placement="top">
+        <IconButton
+          size="small"
+          aria-label="select"
+          onClick={(e) => handleClickOption(e, "select")}
+        >
+          <SelectAllIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+
       {!hideEdit && (
         <Tooltip title="Edit" placement="top">
           <IconButton
@@ -127,7 +138,7 @@ export const MSGMenu = ({
 }: MSGMenuProps) => {
   const handleClickOption = (
     event: React.MouseEvent<HTMLLIElement, MouseEvent>,
-    reason: "copy" | "edit" | "delete"
+    reason: DefaultContextMenuOptions
   ) => {
     event.preventDefault();
     handleClickOptionMenu(reason);
@@ -199,10 +210,34 @@ export const MSGMenu = ({
                 }}
               >
                 {item.Icon}
-                {/* <ContentCopyIcon fontSize="small" color="inherit" /> */}
               </ListItemIcon>
             </MenuItem>
           ))}
+
+          <MenuItem
+            onClick={(e) => handleClickOption(e, "select")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              color: colors.grey["800"],
+              transition: "all 0.1s ease-in-out",
+              ":hover": {
+                color: colors.common.white,
+                bgcolor: colors.grey["600"],
+              },
+            }}
+          >
+            <ListItemText>Select</ListItemText>
+            <ListItemIcon
+              sx={{
+                justifyContent: "flex-end",
+                color: "inherit",
+              }}
+            >
+              <SelectAllIcon fontSize="small" color="inherit" />
+            </ListItemIcon>
+          </MenuItem>
 
           {!hideCopy && (
             <MenuItem

@@ -22,3 +22,5 @@ export { SendMediaButton } from "./SendMediaButton/SendMediaButton";
 export { SearchInput } from "./Search/SearchInput";
 export { SearchResults } from "./Search/SearchResults";
 export { EmojiPickerContainer } from "./EmojiPickerContainer/EmojiPickerContainer";
+export { SelectionMessageButton } from "./SelectionMessageButton/SelectionMessageButton";
+export { SelectionChatForm } from "./SelectionChatForm/SelectionChatForm";

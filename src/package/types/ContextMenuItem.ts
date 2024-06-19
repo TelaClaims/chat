@@ -8,4 +8,4 @@ export type ContextMenuItem = {
   onClick: (message: Message) => void;
 };
 
-export type DefaultContextMenuOptions = "copy" | "edit" | "delete";
+export type DefaultContextMenuOptions = "copy" | "edit" | "delete" | "select";

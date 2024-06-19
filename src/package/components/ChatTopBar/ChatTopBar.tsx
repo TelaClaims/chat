@@ -1,5 +1,5 @@
 import { useChat, useChatDispatch } from "@/package/context/Chat/context";
-import { Box, IconButton } from "@mui/material";
+import { Box, Button, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { useIsTyping } from "@/package/hooks";
 import { ConversationAttributes } from "@/package/types";
@@ -8,9 +8,10 @@ import { SearchInput } from "../Search/SearchInput";
 import SearchIcon from "@mui/icons-material/Search";
 
 export const ChatTopBar = () => {
-  const { activeConversation, search } = useChat();
+  const { activeConversation, search, selectionMode } = useChat();
   const { conversation, partyUsers } = activeConversation || {};
-  const { clearSelectedContact, setView, setSearch } = useChatDispatch();
+  const { clearSelectedContact, setView, setSearch, resetSelectionMode } =
+    useChatDispatch();
   const { isTyping } = useIsTyping(conversation);
 
   const conversationAttributes =
@@ -53,9 +54,14 @@ export const ChatTopBar = () => {
               fullDisplay
             />
           )}
-          <IconButton onClick={handleClickSearch}>
-            <SearchIcon />
-          </IconButton>
+
+          {selectionMode.active ? (
+            <Button onClick={resetSelectionMode}>Cancel</Button>
+          ) : (
+            <IconButton onClick={handleClickSearch}>
+              <SearchIcon />
+            </IconButton>
+          )}
         </>
       )}
     </Box>
