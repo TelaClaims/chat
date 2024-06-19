@@ -20,9 +20,10 @@ import { Handlers } from "@/package/types";
 
 interface Props {
   onClickTag: Handlers["onClickTag"];
+  onClickSelectedMessages: Handlers["onClickSelectedMessages"];
 }
 
-const ChatView = ({ onClickTag }: Props) => {
+const ChatView = ({ onClickTag, onClickSelectedMessages }: Props) => {
   const { activeConversation, selectedMessage, goingToMessage, search } =
     useChat();
   const {
@@ -292,7 +293,10 @@ const ChatView = ({ onClickTag }: Props) => {
           color="info"
           onClickAlert={goToLastReadMessage}
         />
-        <ChatForm goToLastMessage={goToLastMessage} />
+        <ChatForm
+          goToLastMessage={goToLastMessage}
+          onClickSelectedMessages={onClickSelectedMessages}
+        />
       </Stack.Segment>
     </Stack>
   );

@@ -125,6 +125,12 @@ function App() {
     });
   };
 
+  const onClickSelectedMessages = async (messages: Message[]) => {
+    alert(
+      `Selected messages: ${messages.map((message) => message.body).join(", ")}`
+    );
+  };
+
   return (
     <Layout>
       <ControlPanel
@@ -140,6 +146,7 @@ function App() {
         handlers={{
           onLookupContact,
           onClickTag,
+          onClickSelectedMessages,
         }}
         messagesExtendedContextMenu={[
           {

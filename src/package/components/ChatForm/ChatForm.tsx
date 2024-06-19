@@ -15,12 +15,17 @@ import InsertEmoticonIcon from "@mui/icons-material/InsertEmoticon";
 import { EmojiPickerContainer } from "../EmojiPickerContainer/EmojiPickerContainer";
 import { EmojiClickData } from "emoji-picker-react";
 import { SelectionChatForm } from "../SelectionChatForm/SelectionChatForm";
+import { Handlers } from "@/package/types";
 
 interface Props {
   goToLastMessage: () => void;
+  onClickSelectedMessages: Handlers["onClickSelectedMessages"];
 }
 
-export const ChatForm = ({ goToLastMessage }: Props) => {
+export const ChatForm = ({
+  goToLastMessage,
+  onClickSelectedMessages,
+}: Props) => {
   const { activeConversation, selectedMessage, selectionMode } = useChat();
   const { selectMessage, setAlert } = useChatDispatch();
   const { conversation } = activeConversation || {};
@@ -127,7 +132,9 @@ export const ChatForm = ({ goToLastMessage }: Props) => {
         />
       )}
 
-      {selectionMode.active && <SelectionChatForm />}
+      {selectionMode.active && (
+        <SelectionChatForm onClickSelectedMessages={onClickSelectedMessages} />
+      )}
 
       {!selectionMode.active && (
         <>

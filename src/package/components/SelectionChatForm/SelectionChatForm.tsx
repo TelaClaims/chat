@@ -12,12 +12,22 @@ import {
   colors,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import SelectAllIcon from "@mui/icons-material/SelectAll";
 import { useState } from "react";
+import { Handlers } from "@/package/types";
 
-export const SelectionChatForm = () => {
+interface Props {
+  onClickSelectedMessages: Handlers["onClickSelectedMessages"];
+}
+
+export const SelectionChatForm = ({ onClickSelectedMessages }: Props) => {
   const { selectionMode } = useChat();
   const [openDeleteSelectedMessagesModal, setOpenDeleteSelectedMessagesModal] =
     useState(false);
+
+  const handleClickAllSelectedMessages = () => {
+    onClickSelectedMessages?.(selectionMode.selectedMessages);
+  };
 
   return (
     <>
@@ -39,6 +49,11 @@ export const SelectionChatForm = () => {
           >
             <DeleteIcon />
           </IconButton>
+          {onClickSelectedMessages && (
+            <IconButton onClick={handleClickAllSelectedMessages}>
+              <SelectAllIcon />
+            </IconButton>
+          )}
         </Box>
         <Typography variant="body2">
           {selectionMode.selectedMessages.length} selected
