@@ -113,7 +113,9 @@ export const ChatForm = ({
         messageInputRef.current!.focus();
       }
     } else {
-      messageInputRef.current!.value = "";
+      if (messageInputRef.current) {
+        messageInputRef.current.value = "";
+      }
     }
   }, [selectedMessage]);
 
