@@ -1,4 +1,3 @@
-import React from "react";
 import { Media } from "@twilio/conversations";
 import { useGetMediaMessageUrl } from "../useGetMediaMessageUrl";
 import { Box, Skeleton, Typography, styled } from "@mui/material";
@@ -15,7 +14,7 @@ const Image = styled("img")<{ small?: boolean }>(({ small }) => ({
   objectFit: "cover",
 }));
 
-export const MediaMessage: React.FC<Props> = ({ media, small }) => {
+export const MediaMessage = ({ media, small }: Props) => {
   const { mediaUrl, isLoading, error } = useGetMediaMessageUrl(media);
 
   if (error)

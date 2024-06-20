@@ -18,6 +18,7 @@ export const useChat = () => {
   };
 
   return {
+    registeredUser: client?.user,
     hasNewMessage,
     countConversationsWithNewMessages,
     goToMessage,

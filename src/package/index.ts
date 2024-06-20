@@ -1,4 +1,5 @@
 export { type ContactInput, Contact, type MessageAttributes } from "./types";
+export { MediaMessage, BodyMessage } from "./components";
 
 export { utils } from "./utils/index";
 export { useChat } from "./useChat";

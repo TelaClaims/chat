@@ -7,6 +7,8 @@ export { ContactListItem } from "./ContactListItem/ContactListItem";
 export { ContactUI } from "./Contact/Contact";
 export { SideBarPanel } from "./SideBarPanel/SideBarPanel";
 export { MessageUI } from "./Message/Message";
+export { MediaMessage } from "./Message/MediaMessage/MediaMessage";
+export { BodyMessage } from "./Message/BodyMessage/BodyMessage";
 export { ChatTopBar } from "./ChatTopBar/ChatTopBar";
 export { MessageMenu } from "./MessageMenu/MessageMenu";
 export { MessageDateLine } from "./MessageDateLine/MessageDateLine";
